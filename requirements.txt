@@ -1,0 +1,20 @@
+# 爬虫相关依赖
+requests
+beautifulsoup4
+lxml
+
+# 数据处理相关依赖
+pandas
+numpy
+scipy
+
+# 数据可视化相关依赖
+matplotlib
+seaborn
+
+# 机器学习相关依赖
+scikit-learn
+
+# 贝叶斯分析相关依赖（可选）
+pymc
+arviz
