@@ -64,7 +64,7 @@ except Exception as e:
 class SSQAdvancedAnalyzer:
     """双色球高级数据分析类"""
 
-    def __init__(self, data_file="data/ssq_data.csv", output_dir="data/advanced"):
+    def __init__(self, data_file="../data/ssq_data.csv", output_dir="../data/advanced"):
         """
         初始化高级分析器
 
@@ -767,10 +767,11 @@ class SSQAdvancedAnalyzer:
     def predict_numbers(self, method='ensemble', explain=False):
         """
         使用高级分析方法预测双色球号码
+        新增'markov'方法
         
         Args:
             method: 预测方法，可选值为'stats'（统计学）, 'probability'（概率论）, 
-                   'decision_tree'（决策树）, 'bayes'（贝叶斯）, 'ensemble'（集成方法）
+                   'decision_tree'（决策树）, 'bayes'（贝叶斯）, 'ensemble'（集成方法）, 'markov'（马尔可夫链）
             explain: 是否解释预测结果
             
         Returns:
@@ -1175,6 +1176,48 @@ class SSQAdvancedAnalyzer:
                 print(f"   蓝球{num:02d}: {votes}票 {status}")
         
         return top_reds, blue_ball
+    
+    def _predict_by_markov_chain(self, explain=False):
+        """
+        基于马尔可夫链预测双色球号码
+        """
+        import random
+        if not hasattr(self, '_markov_red_probs') or not hasattr(self, '_markov_blue_probs'):
+            self.analyze_markov_chain()
+        # 取最近一期号码
+        last_row = self.data.iloc[-1]
+        red_balls = []
+        for pos in range(6):
+            prev = last_row[f'red_{pos+1}']
+            probs = self._markov_red_probs[pos][prev]
+            # 按概率加权抽样
+            nums = list(probs.keys())
+            weights = list(probs.values())
+            # 避免重复
+            candidate = None
+            tries = 0
+            while tries < 10:
+                candidate = random.choices(nums, weights=weights, k=1)[0]
+                if candidate not in red_balls:
+                    break
+                tries += 1
+            if candidate in red_balls:
+                candidate = random.choice([n for n in nums if n not in red_balls])
+            red_balls.append(candidate)
+        red_balls = sorted(red_balls)
+        # 蓝球
+        prev_blue = last_row['blue_ball']
+        blue_probs = self._markov_blue_probs[prev_blue]
+        blue_nums = list(blue_probs.keys())
+        blue_weights = list(blue_probs.values())
+        blue_ball = random.choices(blue_nums, weights=blue_weights, k=1)[0]
+        if explain:
+            print("\n基于马尔可夫链的预测解释:")
+            print(f"1. 红球预测基于每个位置与上期同位置号码的转移概率")
+            print(f"2. 蓝球预测基于上期蓝球的转移概率")
+            print(f"3. 预测红球: {red_balls}")
+            print(f"4. 预测蓝球: {blue_ball}")
+        return red_balls, blue_ball
         
     def generate_smart_numbers_advanced(self):
         """
@@ -1734,293 +1777,6 @@ class SSQAdvancedAnalyzer:
         
         return selected_reds, selected_blue, explanation
     
-    def analyze_markov_chain(self):
-        """
-        使用马尔可夫链分析双色球号码的转移概率
-        分析红球和蓝球的状态转移矩阵
-        
-        Returns:
-            包含转移概率的DataFrame
-        """
-        print("使用马尔可夫链分析双色球号码的转移概率...")
-        
-        # 确保数据已加载
-        if self.data is None:
-            self.load_data()
-        
-        # 初始化结果字典
-        results = {
-            '红球转移概率': {},
-            '蓝球转移概率': {}
-        }
-        
-        # 分析红球的马尔可夫链
-        # 为每个位置创建转移矩阵
-        for pos in range(1, 7):
-            red_col = f'red_{pos}'
-            transitions = {}
-            
-            # 统计转移次数
-            for i in range(len(self.data) - 1):
-                current_ball = self.data.iloc[i][red_col]
-                next_ball = self.data.iloc[i + 1][red_col]
-                
-                if current_ball not in transitions:
-                    transitions[current_ball] = {}
-                
-                if next_ball not in transitions[current_ball]:
-                    transitions[current_ball][next_ball] = 0
-                
-                transitions[current_ball][next_ball] += 1
-            
-            # 计算转移概率
-            prob_matrix = {}
-            for current, nexts in transitions.items():
-                total = sum(nexts.values())
-                prob_matrix[current] = {next_ball: count / total for next_ball, count in nexts.items()}
-            
-            results['红球转移概率'][pos] = prob_matrix
-        
-        # 分析蓝球的马尔可夫链
-        blue_transitions = {}
-        
-        # 统计转移次数
-        for i in range(len(self.data) - 1):
-            current_ball = self.data.iloc[i]['blue_ball']
-            next_ball = self.data.iloc[i + 1]['blue_ball']
-            
-            if current_ball not in blue_transitions:
-                blue_transitions[current_ball] = {}
-            
-            if next_ball not in blue_transitions[current_ball]:
-                blue_transitions[current_ball][next_ball] = 0
-            
-            blue_transitions[current_ball][next_ball] += 1
-        
-        # 计算转移概率
-        blue_prob_matrix = {}
-        for current, nexts in blue_transitions.items():
-            total = sum(nexts.values())
-            blue_prob_matrix[current] = {next_ball: count / total for next_ball, count in nexts.items()}
-        
-        results['蓝球转移概率'] = blue_prob_matrix
-        
-        # 保存结果
-        try:
-            import json
-            # 转换numpy.int64为int，确保JSON可序列化
-            serializable_results = {
-                '红球转移概率': {},
-                '蓝球转移概率': {}
-            }
-            
-            # 处理红球转移概率
-            for pos in results['红球转移概率'].keys():
-                serializable_results['红球转移概率'][int(pos)] = {}
-                for current_ball, next_balls in results['红球转移概率'][pos].items():
-                    serializable_results['红球转移概率'][int(pos)][int(current_ball)] = {}
-                    for next_ball, prob in next_balls.items():
-                        serializable_results['红球转移概率'][int(pos)][int(current_ball)][int(next_ball)] = float(prob)
-            
-            # 处理蓝球转移概率
-            for current_ball, next_balls in results['蓝球转移概率'].items():
-                serializable_results['蓝球转移概率'][int(current_ball)] = {}
-                for next_ball, prob in next_balls.items():
-                    serializable_results['蓝球转移概率'][int(current_ball)][int(next_ball)] = float(prob)
-            
-            output_file = os.path.join(self.output_dir, 'markov_chain_analysis.json')
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(serializable_results, f, ensure_ascii=False, indent=4)
-            print(f"马尔可夫链分析结果已保存到 {output_file}")
-        except Exception as e:
-            print(f"保存马尔可夫链分析结果时出错: {e}")
-        
-        # 创建可视化
-        try:
-            self._visualize_markov_chain(results)
-        except Exception as e:
-            print(f"可视化马尔可夫链时出错: {e}")
-        
-        # 将结果保存为类属性，供预测使用
-        self._markov_results = results
-        
-        return results
-    
-    def _visualize_markov_chain(self, results):
-        """
-        可视化马尔可夫链分析结果
-        
-        Args:
-            results: 马尔可夫链分析结果
-        """
-        import matplotlib.pyplot as plt
-        import networkx as nx
-        import numpy as np
-        
-        # 可视化蓝球转移概率
-        try:
-            blue_probs = results['蓝球转移概率']
-            
-            # 创建有向图
-            G = nx.DiGraph()
-            
-            # 添加节点和边
-            for current, nexts in blue_probs.items():
-                for next_ball, prob in nexts.items():
-                    if prob > 0.1:  # 只显示概率大于0.1的转移
-                        G.add_edge(f'B{current}', f'B{next_ball}', weight=prob, label=f'{prob:.2f}')
-            
-            # 如果图为空，添加一些节点
-            if len(G.nodes()) == 0:
-                for i in range(1, 17):
-                    G.add_node(f'B{i}')
-            
-            # 绘制图
-            plt.figure(figsize=(12, 10))
-            pos = nx.spring_layout(G, seed=42)  # 使用spring布局
-            
-            # 绘制节点
-            nx.draw_networkx_nodes(G, pos, node_color='skyblue', node_size=500)
-            
-            # 绘制边
-            edges = G.edges(data=True)
-            weights = [data['weight'] * 3 for _, _, data in edges]  # 根据权重调整边的宽度
-            nx.draw_networkx_edges(G, pos, width=weights, edge_color='gray', arrowsize=20, alpha=0.7)
-            
-            # 绘制标签
-            nx.draw_networkx_labels(G, pos, font_size=10, font_family='sans-serif')
-            
-            # 绘制边标签
-            edge_labels = {(u, v): f'{d["weight"]:.2f}' for u, v, d in G.edges(data=True)}
-            nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8)
-            
-            plt.title('蓝球马尔可夫链转移概率网络图')
-            plt.axis('off')
-            
-            # 保存图表
-            chart_file = os.path.join(self.output_dir, 'blue_ball_markov_chain.png')
-            plt.savefig(chart_file, dpi=300, bbox_inches='tight')
-            plt.close()
-            print(f"蓝球马尔可夫链网络图已保存到 {chart_file}")
-        except Exception as e:
-            print(f"可视化蓝球马尔可夫链时出错: {e}")
-        
-        # 可视化红球转移概率热力图
-        try:
-            plt.figure(figsize=(15, 10))
-            
-            for pos in range(1, 7):
-                red_probs = results['红球转移概率'][pos]
-                
-                # 创建转移矩阵
-                matrix = np.zeros((33, 33))
-                for i in range(1, 34):
-                    for j in range(1, 34):
-                        if i in red_probs and j in red_probs[i]:
-                            matrix[i-1, j-1] = red_probs[i][j]
-                
-                # 绘制热力图
-                plt.subplot(2, 3, pos)
-                plt.imshow(matrix, cmap='hot', interpolation='nearest')
-                plt.colorbar(label='转移概率')
-                plt.title(f'红球位置{pos}的转移概率热力图')
-                plt.xlabel('下一期号码')
-                plt.ylabel('当前期号码')
-            
-            plt.tight_layout()
-            
-            # 保存图表
-            chart_file = os.path.join(self.output_dir, 'red_ball_markov_chain.png')
-            plt.savefig(chart_file, dpi=300, bbox_inches='tight')
-            plt.close()
-            print(f"红球马尔可夫链热力图已保存到 {chart_file}")
-        except Exception as e:
-            print(f"可视化红球马尔可夫链时出错: {e}")
-    
-    def _predict_by_markov_chain(self, explain=False):
-        """
-        基于马尔可夫链预测双色球号码
-        使用状态转移概率进行预测
-        
-        Args:
-            explain: 是否解释预测结果
-            
-        Returns:
-            (红球列表, 蓝球)
-        """
-        import random
-        
-        # 确保马尔可夫链分析已完成
-        if not hasattr(self, '_markov_results'):
-            self._markov_results = self.analyze_markov_chain()
-        
-        # 获取最近一期的号码
-        latest_data = self.data.iloc[0]
-        latest_reds = [latest_data[f'red_{i}'] for i in range(1, 7)]
-        latest_blue = latest_data['blue_ball']
-        
-        if explain:
-            print("\n基于马尔可夫链的预测:")
-            print(f"最近一期开奖号码: 红球 {' '.join([f'{ball:02d}' for ball in latest_reds])} | 蓝球 {latest_blue:02d}")
-        
-        # 预测红球
-        predicted_reds = []
-        for pos in range(1, 7):
-            current_ball = latest_data[f'red_{pos}']
-            pos_transitions = self._markov_results['红球转移概率'][pos]
-            
-            # 如果当前球有转移概率记录
-            if current_ball in pos_transitions and pos_transitions[current_ball]:
-                # 根据转移概率选择下一个球
-                candidates = list(pos_transitions[current_ball].keys())
-                probabilities = list(pos_transitions[current_ball].values())
-                next_ball = random.choices(candidates, weights=probabilities, k=1)[0]
-            else:
-                # 如果没有转移记录，随机选择
-                next_ball = random.randint(1, 33)
-            
-            # 确保不重复
-            while next_ball in predicted_reds:
-                next_ball = random.randint(1, 33)
-            
-            predicted_reds.append(next_ball)
-        
-        # 排序
-        predicted_reds.sort()
-        
-        # 预测蓝球
-        blue_transitions = self._markov_results['蓝球转移概率']
-        
-        # 如果当前蓝球有转移概率记录
-        if latest_blue in blue_transitions and blue_transitions[latest_blue]:
-            # 根据转移概率选择下一个蓝球
-            candidates = list(blue_transitions[latest_blue].keys())
-            probabilities = list(blue_transitions[latest_blue].values())
-            predicted_blue = random.choices(candidates, weights=probabilities, k=1)[0]
-        else:
-            # 如果没有转移记录，随机选择
-            predicted_blue = random.randint(1, 16)
-        
-        if explain:
-            print("\n预测解释:")
-            print("1. 红球预测:")
-            for i, (current, predicted) in enumerate(zip([latest_data[f'red_{j}'] for j in range(1, 7)], predicted_reds)):
-                pos = i + 1
-                if current in self._markov_results['红球转移概率'][pos] and predicted in self._markov_results['红球转移概率'][pos][current]:
-                    prob = self._markov_results['红球转移概率'][pos][current][predicted]
-                    print(f"   - 红球位置{pos}: {current:02d} -> {predicted:02d} (转移概率: {prob:.4f})")
-                else:
-                    print(f"   - 红球位置{pos}: {current:02d} -> {predicted:02d} (随机选择)")
-            
-            print("\n2. 蓝球预测:")
-            if latest_blue in blue_transitions and predicted_blue in blue_transitions[latest_blue]:
-                prob = blue_transitions[latest_blue][predicted_blue]
-                print(f"   - 蓝球: {latest_blue:02d} -> {predicted_blue:02d} (转移概率: {prob:.4f})")
-            else:
-                print(f"   - 蓝球: {latest_blue:02d} -> {predicted_blue:02d} (随机选择)")
-        
-        return predicted_reds, predicted_blue
-    
     def run_advanced_analysis(self):
         """
         运行所有高级分析
@@ -2038,7 +1794,6 @@ class SSQAdvancedAnalyzer:
         self.analyze_cycle_patterns()
         self.analyze_historical_correlation()
         self.analyze_issue_number_correlation()
-        self.analyze_markov_chain()
         
         # 如果PyMC可用，运行贝叶斯分析
         if PYMC_AVAILABLE:
@@ -2046,6 +1801,91 @@ class SSQAdvancedAnalyzer:
         
         print("高级分析完成！")
         return True
+
+    def analyze_markov_chain(self):
+        """
+        使用马尔可夫链分析红球和蓝球的转移概率
+        生成转移概率矩阵并保存
+        """
+        print("分析马尔可夫链转移概率...")
+        # 红球转移概率（每个红球位置分别统计）
+        red_transitions = [{} for _ in range(6)]
+        for pos in range(6):
+            for i in range(1, 34):
+                red_transitions[pos][i] = {j: 0 for j in range(1, 34)}
+        for idx in range(1, len(self.data)):
+            for pos in range(6):
+                prev = self.data.iloc[idx-1][f'red_{pos+1}']
+                curr = self.data.iloc[idx][f'red_{pos+1}']
+                red_transitions[pos][prev][curr] += 1
+        # 归一化
+        red_probs = [{} for _ in range(6)]
+        for pos in range(6):
+            for i in range(1, 34):
+                total = sum(red_transitions[pos][i].values())
+                if total > 0:
+                    red_probs[pos][i] = {j: red_transitions[pos][i][j]/total for j in range(1, 34)}
+                else:
+                    red_probs[pos][i] = {j: 1/33 for j in range(1, 34)}
+        # 蓝球转移概率
+        blue_transitions = {i: {j: 0 for j in range(1, 17)} for i in range(1, 17)}
+        for idx in range(1, len(self.data)):
+            prev = self.data.iloc[idx-1]['blue_ball']
+            curr = self.data.iloc[idx]['blue_ball']
+            blue_transitions[prev][curr] += 1
+        blue_probs = {}
+        for i in range(1, 17):
+            total = sum(blue_transitions[i].values())
+            if total > 0:
+                blue_probs[i] = {j: blue_transitions[i][j]/total for j in range(1, 17)}
+            else:
+                blue_probs[i] = {j: 1/16 for j in range(1, 17)}
+        self._markov_red_probs = red_probs
+        self._markov_blue_probs = blue_probs
+        print("马尔可夫链分析完成")
+        return red_probs, blue_probs
+
+    def _predict_by_markov_chain(self, explain=False):
+        """
+        基于马尔可夫链预测双色球号码
+        """
+        import random
+        if not hasattr(self, '_markov_red_probs') or not hasattr(self, '_markov_blue_probs'):
+            self.analyze_markov_chain()
+        # 取最近一期号码
+        last_row = self.data.iloc[-1]
+        red_balls = []
+        for pos in range(6):
+            prev = last_row[f'red_{pos+1}']
+            probs = self._markov_red_probs[pos][prev]
+            # 按概率加权抽样
+            nums = list(probs.keys())
+            weights = list(probs.values())
+            # 避免重复
+            candidate = None
+            tries = 0
+            while tries < 10:
+                candidate = random.choices(nums, weights=weights, k=1)[0]
+                if candidate not in red_balls:
+                    break
+                tries += 1
+            if candidate in red_balls:
+                candidate = random.choice([n for n in nums if n not in red_balls])
+            red_balls.append(candidate)
+        red_balls = sorted(red_balls)
+        # 蓝球
+        prev_blue = last_row['blue_ball']
+        blue_probs = self._markov_blue_probs[prev_blue]
+        blue_nums = list(blue_probs.keys())
+        blue_weights = list(blue_probs.values())
+        blue_ball = random.choices(blue_nums, weights=blue_weights, k=1)[0]
+        if explain:
+            print("\n基于马尔可夫链的预测解释:")
+            print(f"1. 红球预测基于每个位置与上期同位置号码的转移概率")
+            print(f"2. 蓝球预测基于上期蓝球的转移概率")
+            print(f"3. 预测红球: {red_balls}")
+            print(f"4. 预测蓝球: {blue_ball}")
+        return red_balls, blue_ball
 
 
 def main():

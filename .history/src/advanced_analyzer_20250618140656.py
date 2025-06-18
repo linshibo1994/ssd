@@ -64,7 +64,7 @@ except Exception as e:
 class SSQAdvancedAnalyzer:
     """双色球高级数据分析类"""
 
-    def __init__(self, data_file="data/ssq_data.csv", output_dir="data/advanced"):
+    def __init__(self, data_file="../data/ssq_data.csv", output_dir="../data/advanced"):
         """
         初始化高级分析器
 

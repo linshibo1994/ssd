@@ -61,11 +61,6 @@ def get_data_file():
     return os.path.join(get_data_dir(), "ssq_data.csv")
 
 
-def get_all_data_file():
-    """获取完整数据文件路径"""
-    return os.path.join(get_data_dir(), "ssq_data_all.csv")
-
-
 def crawl_cwl_data(args):
     """从中国福利彩票官方网站爬取数据"""
     # 创建爬虫实例
@@ -147,38 +142,34 @@ def generate_numbers(args):
     print(format_ssq_numbers(red_balls, blue_ball))
     print()
     
-    # 获取最新一期开奖结果进行对比（使用实时获取）
-    try:
-        issue, date, winning_reds, winning_blue = get_latest_draw(data_file, real_time=True)
+    # 获取最新一期开奖结果进行对比
+    if os.path.exists(data_file):
+        issue, date, winning_reds, winning_blue = get_latest_draw(data_file)
         if issue:
             from utils import calculate_prize
+            
             prize_level = calculate_prize(red_balls, blue_ball, winning_reds, winning_blue)
             
-            print(f"最新开奖结果({issue}期): {format_ssq_numbers(winning_reds, winning_blue)}")
-            print(f"开奖日期: {date}")
+            print(f"最新开奖结果: {format_ssq_numbers(winning_reds, winning_blue)}")
             
             if prize_level:
                 print(f"恭喜！中得{prize_level}等奖！")
             else:
                 print("很遗憾，未中奖")
-    except Exception as e:
-        print(f"获取最新开奖结果失败: {e}")
 
 
 def show_latest(args):
     """显示最新开奖结果"""
     data_file = get_data_file()
     
-    # 默认使用实时获取
-    real_time = True
-    
-    # 如果数据文件不存在，提示用户但仍然尝试实时获取
+    # 检查数据文件是否存在
     if not os.path.exists(data_file):
-        print(f"警告: 本地数据文件不存在: {data_file}")
-        print("将尝试从网络实时获取最新开奖结果...")
+        print(f"数据文件不存在: {data_file}")
+        print("请先运行爬虫程序获取数据")
+        return
     
-    # 获取最新一期开奖结果，优先使用实时获取
-    issue, date, red_balls, blue_ball = get_latest_draw(data_file, real_time=real_time)
+    # 获取最新一期开奖结果
+    issue, date, red_balls, blue_ball = get_latest_draw(data_file)
     
     if issue:
         print(f"\n最新一期({issue})开奖结果:")
@@ -186,86 +177,6 @@ def show_latest(args):
         print(format_ssq_numbers(red_balls, blue_ball))
     else:
         print("获取最新开奖结果失败")
-
-
-def markov_predict(args):
-    """使用马尔可夫链分析历史数据并预测下一期号码"""
-    # 检查高级分析模块是否可用
-    if not ADVANCED_ANALYZER_AVAILABLE:
-        print("错误: 高级分析模块不可用，请确保已安装所需依赖")
-        return
-    
-    # 确定数据文件路径
-    if args.use_all_data:
-        data_file = get_all_data_file()
-        print("将使用所有历史数据进行马尔可夫链分析")
-    else:
-        data_file = get_data_file()
-        print("将使用最近300期数据进行马尔可夫链分析")
-    
-    # 检查数据文件是否存在
-    if not os.path.exists(data_file):
-        print(f"错误: 数据文件不存在: {data_file}")
-        print("请先运行爬虫程序获取数据")
-        return
-    
-    # 确定分析期数
-    periods = args.periods
-    print(f"将使用近{periods}期数据进行马尔可夫链分析")
-    
-    print("开始马尔可夫链分析...")
-    
-    # 创建高级分析器实例
-    advanced_analyzer = AdvancedSSQAnalyzer(data_file)
-    
-    # 加载数据
-    if not advanced_analyzer.load_data():
-        print("加载数据失败")
-        return
-    
-    # 只保留最近periods期数据进行分析
-    if len(advanced_analyzer.data) > periods:
-        # 数据是按日期降序排列的，所以取前periods行
-        advanced_analyzer.data = advanced_analyzer.data.head(periods).reset_index(drop=True)
-        print(f"已筛选最近{len(advanced_analyzer.data)}期数据进行分析")
-    else:
-        print(f"警告: 数据总期数({len(advanced_analyzer.data)})小于指定期数({periods})，将使用全部可用数据")
-    
-    # 执行马尔可夫链分析
-    advanced_analyzer.analyze_markov_chain()
-    
-    # 预测下一期号码
-    print("\n预测下一期号码:")
-    red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=args.explain)
-    formatted_numbers = format_ssq_numbers(red_balls, blue_ball)
-    print(f"\n马尔可夫链预测号码: {formatted_numbers}")
-    
-    # 如果需要生成多注
-    if args.count > 1:
-        print(f"\n额外预测{args.count-1}注:")
-        for i in range(args.count-1):
-            red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=False)
-            formatted_numbers = format_ssq_numbers(red_balls, blue_ball)
-            print(f"第{i+2}注: {formatted_numbers}")
-    
-    # 与最新开奖结果比对
-    if args.check_latest:
-        try:
-            issue, date, winning_reds, winning_blue = get_latest_draw(data_file, real_time=True)
-            if issue:
-                from utils import calculate_prize
-                prize_level = calculate_prize(red_balls, blue_ball, winning_reds, winning_blue)
-                
-                latest_formatted = format_ssq_numbers(winning_reds, winning_blue)
-                print(f"\n最新开奖结果({issue}期): {latest_formatted}")
-                print(f"开奖日期: {date}")
-                
-                if prize_level:
-                    print(f"恭喜！中得{prize_level}等奖！")
-                else:
-                    print("很遗憾，未中奖")
-        except Exception as e:
-            print(f"获取最新开奖结果失败: {e}")
 
 
 def main():
@@ -298,7 +209,6 @@ def main():
     predict_parser.add_argument('--explain', action='store_true', help='是否解释预测结果')
     predict_parser.add_argument('--compare', action='store_true', help='是否与历史数据进行对比分析')
     predict_parser.add_argument('--compare_periods', type=int, default=300, help='与历史数据对比的期数，默认为300期')
-    predict_parser.add_argument('--check-latest', action='store_true', help='检查与最新一期的匹配情况')
     
     # 生成命令
     generate_parser = subparsers.add_parser('generate', help='生成双色球号码')
@@ -307,14 +217,6 @@ def main():
     
     # 最新开奖命令
     latest_parser = subparsers.add_parser('latest', help='显示最新开奖结果')
-    
-    # 马尔可夫链预测命令
-    markov_parser = subparsers.add_parser('markov_predict', help='使用马尔可夫链分析历史数据并预测下一期号码')
-    markov_parser.add_argument('--periods', type=int, default=300, help='使用近多少期数据进行分析，默认300期')
-    markov_parser.add_argument('--use-all-data', action='store_true', help='使用所有历史数据进行分析')
-    markov_parser.add_argument('--explain', action='store_true', help='解释预测结果')
-    markov_parser.add_argument('--count', type=int, default=1, help='生成注数，默认为1注')
-    markov_parser.add_argument('--check-latest', action='store_true', help='检查与最新一期的匹配情况')
     
     # 解析命令行参数
     args = parser.parse_args()
@@ -422,10 +324,10 @@ def main():
         # 与历史数据进行对比分析
         if compare:
             print("\n与历史数据对比分析:")
-            advanced_analyzer.compare_with_historical_data((numbers[:6], numbers[6]), periods=compare_periods)
+            advanced_analyzer.compare_with_historical_data(numbers[:6], numbers[6], periods=compare_periods)
         
-        # 获取最新开奖结果并比对（使用实时获取）
-        latest_draw = get_latest_draw(data_file, real_time=True)
+        # 获取最新开奖结果并比对
+        latest_draw = get_latest_draw(data_file)
         if latest_draw:
             issue, date, winning_reds, winning_blue = latest_draw
             latest_numbers = winning_reds + [winning_blue]
@@ -435,8 +337,7 @@ def main():
             from utils import calculate_prize
             prize_level = calculate_prize(numbers[:6], numbers[6], winning_reds, winning_blue)
             
-            print(f"最新开奖结果({issue}期): {latest_formatted}")
-            print(f"开奖日期: {date}")
+            print(f"最新开奖结果: {latest_formatted}")
             
             if prize_level:
                 print(f"恭喜！中得{prize_level}等奖！")
@@ -446,8 +347,6 @@ def main():
         generate_numbers(args)
     elif args.command == "latest":
         show_latest(args)
-    elif args.command == "markov_predict":
-        markov_predict(args)
 
 
 if __name__ == "__main__":

@@ -178,108 +178,70 @@ class SSQCWLCrawler:
     
     def get_history_data_from_500cp(self):
         """
-        从中彩网获取双色球历史数据
+        从500彩票网获取双色球历史数据
         
         Returns:
             开奖结果列表
         """
         results = []
-        seen_issues = set()  # 用于去重的期号集合
         
         try:
-            print(f"正在从中彩网获取双色球历史数据...")
+            print(f"正在从500彩票网获取双色球历史数据...")
             
-            # 中彩网双色球历史数据页面数量（根据实际情况调整）
-            total_pages = 125  # 预估页数，实际会在没有数据时退出
+            # 发送请求
+            response = requests.get(self.cp500_url, headers=self.cp500_headers, timeout=10)
+            # 设置正确的编码
+            response.encoding = 'gb2312'
             
-            for page in range(1, total_pages + 1):
+            # 使用BeautifulSoup解析HTML
+            soup = BeautifulSoup(response.text, "html.parser")
+            
+            # 查找数据表格
+            table = soup.find('table', attrs={'width': '100%'})
+            if not table:
+                print("未找到数据表格")
+                return results
+            
+            # 获取表格中的所有行
+            rows = table.find_all('tr')
+            if len(rows) <= 1:
+                print("表格中没有数据行")
+                return results
+            
+            # 跳过表头行，解析数据行
+            for row in rows[1:]:
                 try:
-                    print(f"正在获取第{page}页数据...")
+                    cells = row.find_all('td')
+                    if len(cells) < 9:
+                        continue
                     
-                    # 中彩网双色球历史数据URL
-                    url = f"http://kaijiang.zhcw.com/zhcw/html/ssq/list_{page}.html"
+                    # 获取期号
+                    issue = cells[0].text.strip()
                     
-                    # 发送请求
-                    response = requests.get(url, headers=self.cp500_headers, timeout=10)
-                    # 设置正确的编码
-                    response.encoding = 'utf-8'
+                    # 获取开奖日期
+                    date = cells[1].text.strip()
                     
-                    # 使用BeautifulSoup解析HTML
-                    soup = BeautifulSoup(response.text, "html.parser")
+                    # 获取红球
+                    red_balls = []
+                    for i in range(2, 8):
+                        red_balls.append(cells[i].text.strip().zfill(2))  # 补0，保持两位数格式
                     
-                    # 查找数据表格
-                    table = soup.find('table', attrs={'class': 'wqhgt'})
-                    if not table:
-                        print(f"第{page}页未找到数据表格，可能已到达最后一页")
-                        break
+                    # 获取蓝球
+                    blue_ball = cells[8].text.strip().zfill(2)  # 补0，保持两位数格式
                     
-                    # 获取表格中的所有行
-                    rows = table.find_all('tr')
-                    if len(rows) <= 1:
-                        print(f"第{page}页表格中没有数据行，可能已到达最后一页")
-                        break
-                    
-                    # 跳过表头行，解析数据行
-                    has_data = False
-                    for row in rows[1:]:
-                        try:
-                            # 获取所有单元格
-                            cells = row.find_all('td')
-                            if len(cells) < 3:
-                                continue
-                            
-                            # 获取开奖日期
-                            date = cells[0].text.strip()
-                            
-                            # 获取期号
-                            issue = cells[1].text.strip()
-                            
-                            # 检查期号是否已存在，避免重复添加
-                            if issue in seen_issues:
-                                continue
-                            seen_issues.add(issue)
-                            
-                            # 获取红球和蓝球
-                            ball_cell = cells[2]
-                            all_balls = ball_cell.find_all('em')
-                            
-                            if len(all_balls) != 7:  # 6个红球 + 1个蓝球
-                                continue
-                            
-                            # 获取红球
-                            red_balls = []
-                            for i in range(6):
-                                red_balls.append(all_balls[i].text.strip().zfill(2))  # 补0，保持两位数格式
-                            
-                            # 获取蓝球
-                            blue_ball = all_balls[6].text.strip().zfill(2)  # 补0，保持两位数格式
-                            
-                            results.append({
-                                "issue": issue,
-                                "date": date,
-                                "red_balls": ",".join(red_balls),
-                                "blue_ball": blue_ball
-                            })
-                            has_data = True
-                        except Exception as e:
-                            print(f"解析行数据失败: {e}")
-                            continue
-                    
-                    # 如果当前页没有有效数据，可能已到达最后一页
-                    if not has_data:
-                        print(f"第{page}页没有有效数据，可能已到达最后一页")
-                        break
-                    
-                    # 添加随机延迟，避免请求过于频繁
-                    time.sleep(random.uniform(1, 3))
-                    
+                    results.append({
+                        "issue": issue,
+                        "date": date,
+                        "red_balls": ",".join(red_balls),
+                        "blue_ball": blue_ball
+                    })
                 except Exception as e:
-                    print(f"获取第{page}页数据失败: {e}")
+                    print(f"解析行数据失败: {e}")
                     continue
             
-            print(f"从中彩网成功获取{len(results)}期双色球开奖结果")
+            print(f"从500彩票网成功获取{len(results)}期双色球开奖结果")
         except Exception as e:
-            print(f"从中彩网获取数据失败: {e}")
+            print(f"从500彩票网获取数据失败: {e}")
             import traceback
             traceback.print_exc()
         
@@ -298,23 +260,17 @@ class SSQCWLCrawler:
         # 从官方网站获取数据
         results = self.get_history_data_from_cwl(count)
         
-        # 记录已爬取的期号
-        existing_issues = set(item["issue"] for item in results)
-        
-        # 如果官方网站数据不足或需要获取所有期数，从中彩网获取补充数据
+        # 如果官方网站数据不足或需要获取所有期数，从500彩票网获取补充数据
         if count is None or (count is not None and len(results) < count):
-            print(f"从官方网站获取的数据不足({len(results)}期)，将从中彩网获取补充数据...")
+            print(f"从官方网站获取的数据不足，将从500彩票网获取补充数据...")
             results_500cp = self.get_history_data_from_500cp()
             
-            # 只添加不重复的期号数据
-            added_count = 0
+            # 合并数据，去重
+            existing_issues = set(item["issue"] for item in results)
             for item in results_500cp:
                 if item["issue"] not in existing_issues:
                     results.append(item)
                     existing_issues.add(item["issue"])
-                    added_count += 1
-            
-            print(f"从中彩网补充了{added_count}期不重复的数据")
             
             # 按期号排序（降序）
             results.sort(key=lambda x: int(x["issue"]), reverse=True)
@@ -323,78 +279,35 @@ class SSQCWLCrawler:
             if count is not None and len(results) > count:
                 results = results[:count]
         
-        print(f"共获取{len(results)}期双色球开奖结果（已去重）")
+        print(f"共获取{len(results)}期双色球开奖结果")
         return results
 
     def save_to_csv(self, results, filename="ssq_data.csv"):
         """
-        将开奖结果保存到CSV文件
-        
+        保存开奖结果到CSV文件
+
         Args:
             results: 开奖结果列表
-            filename: 保存的文件名
+            filename: 文件名
         """
         if not results:
             print("没有数据可保存")
             return
         
-        # 确保数据目录存在
-        os.makedirs(self.data_dir, exist_ok=True)
-        
-        # 构建完整的文件路径
         file_path = os.path.join(self.data_dir, filename)
         
-        # 检查文件是否已存在
-        file_exists = os.path.exists(file_path)
-        
-        # 如果文件已存在，读取已有数据，确保不重复添加
-        existing_data = []
-        existing_issues = set()
-        if file_exists:
-            print(f"发现已有数据文件: {file_path}，将检查期号确保不重复")
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        existing_data.append(row)
-                        existing_issues.add(row['issue'])
-            except Exception as e:
-                print(f"读取已有数据文件失败: {e}")
-                existing_data = []
-                existing_issues = set()
-        
-        # 过滤掉已存在的期号
-        new_results = []
-        for result in results:
-            if result['issue'] not in existing_issues:
-                new_results.append(result)
-                existing_issues.add(result['issue'])
-        
-        if file_exists and new_results:
-            print(f"将添加{len(new_results)}期新数据到已有文件")
-            # 追加新数据到已有文件
-            with open(file_path, 'a', encoding='utf-8', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=['issue', 'date', 'red_balls', 'blue_ball'])
-                for result in new_results:
-                    writer.writerow(result)
-            print(f"数据已追加到文件: {file_path}")
-        elif not file_exists:
-            print(f"创建新数据文件: {file_path}")
-            # 创建新文件并写入所有数据
-            with open(file_path, 'w', encoding='utf-8', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=['issue', 'date', 'red_balls', 'blue_ball'])
-                writer.writeheader()
-                for result in results:
-                    writer.writerow(result)
-            print(f"数据已保存到新文件: {file_path}")
-        else:
-            print("没有新数据需要添加")
-        
-        # 打印保存的数据总数
-        total_count = len(existing_data) + len(new_results) if file_exists else len(results)
-        print(f"文件中共有{total_count}期双色球开奖结果")
-        
-        return file_path
+        try:
+            with open(file_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                # 写入表头
+                writer.writerow(["issue", "date", "red_balls", "blue_ball"])
+                # 写入数据
+                for item in results:
+                    writer.writerow([item["issue"], item["date"], item["red_balls"], item["blue_ball"]])
+            
+            print(f"数据已保存到文件: {file_path}")
+        except Exception as e:
+            print(f"保存数据失败: {e}")
 
 
 def main():

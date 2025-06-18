@@ -64,7 +64,7 @@ except Exception as e:
 class SSQAdvancedAnalyzer:
     """双色球高级数据分析类"""
 
-    def __init__(self, data_file="data/ssq_data.csv", output_dir="data/advanced"):
+    def __init__(self, data_file="../data/ssq_data.csv", output_dir="../data/advanced"):
         """
         初始化高级分析器
 
@@ -1808,29 +1808,9 @@ class SSQAdvancedAnalyzer:
         # 保存结果
         try:
             import json
-            # 转换numpy.int64为int，确保JSON可序列化
-            serializable_results = {
-                '红球转移概率': {},
-                '蓝球转移概率': {}
-            }
-            
-            # 处理红球转移概率
-            for pos in results['红球转移概率'].keys():
-                serializable_results['红球转移概率'][int(pos)] = {}
-                for current_ball, next_balls in results['红球转移概率'][pos].items():
-                    serializable_results['红球转移概率'][int(pos)][int(current_ball)] = {}
-                    for next_ball, prob in next_balls.items():
-                        serializable_results['红球转移概率'][int(pos)][int(current_ball)][int(next_ball)] = float(prob)
-            
-            # 处理蓝球转移概率
-            for current_ball, next_balls in results['蓝球转移概率'].items():
-                serializable_results['蓝球转移概率'][int(current_ball)] = {}
-                for next_ball, prob in next_balls.items():
-                    serializable_results['蓝球转移概率'][int(current_ball)][int(next_ball)] = float(prob)
-            
             output_file = os.path.join(self.output_dir, 'markov_chain_analysis.json')
             with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(serializable_results, f, ensure_ascii=False, indent=4)
+                json.dump(results, f, ensure_ascii=False, indent=4)
             print(f"马尔可夫链分析结果已保存到 {output_file}")
         except Exception as e:
             print(f"保存马尔可夫链分析结果时出错: {e}")

@@ -184,7 +184,6 @@ class SSQCWLCrawler:
             开奖结果列表
         """
         results = []
-        seen_issues = set()  # 用于去重的期号集合
         
         try:
             print(f"正在从中彩网获取双色球历史数据...")
@@ -233,11 +232,6 @@ class SSQCWLCrawler:
                             
                             # 获取期号
                             issue = cells[1].text.strip()
-                            
-                            # 检查期号是否已存在，避免重复添加
-                            if issue in seen_issues:
-                                continue
-                            seen_issues.add(issue)
                             
                             # 获取红球和蓝球
                             ball_cell = cells[2]
@@ -298,23 +292,17 @@ class SSQCWLCrawler:
         # 从官方网站获取数据
         results = self.get_history_data_from_cwl(count)
         
-        # 记录已爬取的期号
-        existing_issues = set(item["issue"] for item in results)
-        
         # 如果官方网站数据不足或需要获取所有期数，从中彩网获取补充数据
         if count is None or (count is not None and len(results) < count):
-            print(f"从官方网站获取的数据不足({len(results)}期)，将从中彩网获取补充数据...")
+            print(f"从官方网站获取的数据不足，将从中彩网获取补充数据...")
             results_500cp = self.get_history_data_from_500cp()
             
-            # 只添加不重复的期号数据
-            added_count = 0
+            # 合并数据，去重
+            existing_issues = set(item["issue"] for item in results)
             for item in results_500cp:
                 if item["issue"] not in existing_issues:
                     results.append(item)
                     existing_issues.add(item["issue"])
-                    added_count += 1
-            
-            print(f"从中彩网补充了{added_count}期不重复的数据")
             
             # 按期号排序（降序）
             results.sort(key=lambda x: int(x["issue"]), reverse=True)
@@ -323,78 +311,35 @@ class SSQCWLCrawler:
             if count is not None and len(results) > count:
                 results = results[:count]
         
-        print(f"共获取{len(results)}期双色球开奖结果（已去重）")
+        print(f"共获取{len(results)}期双色球开奖结果")
         return results
 
     def save_to_csv(self, results, filename="ssq_data.csv"):
         """
-        将开奖结果保存到CSV文件
-        
+        保存开奖结果到CSV文件
+
         Args:
             results: 开奖结果列表
-            filename: 保存的文件名
+            filename: 文件名
         """
         if not results:
             print("没有数据可保存")
             return
         
-        # 确保数据目录存在
-        os.makedirs(self.data_dir, exist_ok=True)
-        
-        # 构建完整的文件路径
         file_path = os.path.join(self.data_dir, filename)
         
-        # 检查文件是否已存在
-        file_exists = os.path.exists(file_path)
-        
-        # 如果文件已存在，读取已有数据，确保不重复添加
-        existing_data = []
-        existing_issues = set()
-        if file_exists:
-            print(f"发现已有数据文件: {file_path}，将检查期号确保不重复")
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    for row in reader:
-                        existing_data.append(row)
-                        existing_issues.add(row['issue'])
-            except Exception as e:
-                print(f"读取已有数据文件失败: {e}")
-                existing_data = []
-                existing_issues = set()
-        
-        # 过滤掉已存在的期号
-        new_results = []
-        for result in results:
-            if result['issue'] not in existing_issues:
-                new_results.append(result)
-                existing_issues.add(result['issue'])
-        
-        if file_exists and new_results:
-            print(f"将添加{len(new_results)}期新数据到已有文件")
-            # 追加新数据到已有文件
-            with open(file_path, 'a', encoding='utf-8', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=['issue', 'date', 'red_balls', 'blue_ball'])
-                for result in new_results:
-                    writer.writerow(result)
-            print(f"数据已追加到文件: {file_path}")
-        elif not file_exists:
-            print(f"创建新数据文件: {file_path}")
-            # 创建新文件并写入所有数据
-            with open(file_path, 'w', encoding='utf-8', newline='') as f:
-                writer = csv.DictWriter(f, fieldnames=['issue', 'date', 'red_balls', 'blue_ball'])
-                writer.writeheader()
-                for result in results:
-                    writer.writerow(result)
-            print(f"数据已保存到新文件: {file_path}")
-        else:
-            print("没有新数据需要添加")
-        
-        # 打印保存的数据总数
-        total_count = len(existing_data) + len(new_results) if file_exists else len(results)
-        print(f"文件中共有{total_count}期双色球开奖结果")
-        
-        return file_path
+        try:
+            with open(file_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                # 写入表头
+                writer.writerow(["issue", "date", "red_balls", "blue_ball"])
+                # 写入数据
+                for item in results:
+                    writer.writerow([item["issue"], item["date"], item["red_balls"], item["blue_ball"]])
+            
+            print(f"数据已保存到文件: {file_path}")
+        except Exception as e:
+            print(f"保存数据失败: {e}")
 
 
 def main():
