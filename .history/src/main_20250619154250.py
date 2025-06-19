@@ -190,7 +190,7 @@ def show_latest(args):
 
 
 def markov_predict(args):
-    """马尔可夫链预测"""
+    """使用马尔可夫链分析历史数据并预测下一期号码"""
     # 检查高级分析模块是否可用
     if not ADVANCED_ANALYZER_AVAILABLE:
         print("错误: 高级分析模块不可用，请确保已安装所需依赖")
@@ -256,18 +256,18 @@ def markov_predict(args):
     advanced_analyzer.analyze_markov_chain()
     print("DEBUG: 马尔可夫链分析完成")
     
-    # 预测下一期号码 - 使用最大概率选择
+    # 预测下一期号码
     print("\n预测下一期号码:")
-    red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=args.explain, use_max_prob=True)
+    red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=args.explain)
     print(f"DEBUG: red_balls = {red_balls}, blue_ball = {blue_ball}")
     formatted_numbers = format_ssq_numbers(red_balls, blue_ball)
     print(f"\n马尔可夫链预测号码: {formatted_numbers}")
     
-    # 如果需要生成多注 - 使用概率分布随机选择
+    # 如果需要生成多注
     if args.count > 1:
         print(f"\n额外预测{args.count-1}注:")
         for i in range(args.count-1):
-            red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=False, use_max_prob=False)
+            red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=False)
             formatted_numbers = format_ssq_numbers(red_balls, blue_ball)
             print(f"第{i+2}注: {formatted_numbers}")
     
@@ -586,7 +586,7 @@ def main():
         generate_numbers(args)
     elif args.command == "latest":
         show_latest(args)
-    elif args.command == "markov":
+    elif args.command == "markov_predict":
         markov_predict(args)
 
 

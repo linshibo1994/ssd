@@ -1937,14 +1937,13 @@ class SSQAdvancedAnalyzer:
         except Exception as e:
             print(f"可视化红球马尔可夫链时出错: {e}")
     
-    def _predict_by_markov_chain(self, explain=False, use_max_prob=True):
+    def _predict_by_markov_chain(self, explain=False):
         """
         基于马尔可夫链预测双色球号码
         使用状态转移概率进行预测，不使用随机选择
         
         Args:
             explain: 是否解释预测结果
-            use_max_prob: 是否使用最大概率选择，如果为False则使用概率分布随机选择
             
         Returns:
             (红球列表, 蓝球)
@@ -1999,25 +1998,20 @@ class SSQAdvancedAnalyzer:
                         valid_probabilities.append(p)
                 
                 if valid_candidates:
-                    # 根据参数决定选择方式
+                    # 选择概率最高的球
                     if sum(valid_probabilities) > 0:
-                        if use_max_prob:
-                            # 找出概率最高的球
-                            max_prob_index = valid_probabilities.index(max(valid_probabilities))
-                            next_ball = valid_candidates[max_prob_index]
-                        else:
-                            # 重新归一化概率
-                            valid_probabilities = [p/sum(valid_probabilities) for p in valid_probabilities]
-                            next_ball = np.random.choice(valid_candidates, p=valid_probabilities)
+                        # 找出概率最高的球
+                        max_prob_index = valid_probabilities.index(max(valid_probabilities))
+                        next_ball = valid_candidates[max_prob_index]
                     else:
                         # 如果所有概率都为0，使用全局频率
-                        next_ball = self._select_by_global_frequency(predicted_reds, red_probs, use_max_prob)
+                        next_ball = self._select_by_global_frequency(predicted_reds, red_probs)
                 else:
                     # 如果没有有效候选，使用全局频率
-                    next_ball = self._select_by_global_frequency(predicted_reds, red_probs, use_max_prob)
+                    next_ball = self._select_by_global_frequency(predicted_reds, red_probs)
             else:
                 # 如果没有转移记录，使用全局频率分布
-                next_ball = self._select_by_global_frequency(predicted_reds, red_probs, use_max_prob)
+                next_ball = self._select_by_global_frequency(predicted_reds, red_probs)
             
             # 已在前面的逻辑中确保不重复，这里直接添加到结果中
             predicted_reds.append(next_ball)
@@ -2030,19 +2024,15 @@ class SSQAdvancedAnalyzer:
         
         # 如果当前蓝球有转移概率记录
         if latest_blue in blue_transitions and blue_transitions[latest_blue]:
+            # 选择概率最高的蓝球
             candidates = list(blue_transitions[latest_blue].keys())
             probabilities = list(blue_transitions[latest_blue].values())
-            
-            if use_max_prob:
-                # 选择概率最高的蓝球
-                max_prob_index = probabilities.index(max(probabilities))
-                predicted_blue = candidates[max_prob_index]
-            else:
-                # 基于概率分布随机选择
-                predicted_blue = np.random.choice(candidates, p=probabilities)
+            # 找出概率最高的球
+            max_prob_index = probabilities.index(max(probabilities))
+            predicted_blue = candidates[max_prob_index]
         else:
             # 如果没有转移记录，使用全局蓝球频率分布
-            predicted_blue = self._select_blue_by_frequency(use_max_prob)
+            predicted_blue = self._select_blue_by_frequency()
         
         if explain:
             print("\n预测解释:")
@@ -2064,14 +2054,13 @@ class SSQAdvancedAnalyzer:
         
         return predicted_reds, predicted_blue
         
-    def _select_by_global_frequency(self, existing_balls, probability_dict, use_max_prob=True):
+    def _select_by_global_frequency(self, existing_balls, probability_dict):
         """
         基于全局频率分布选择一个未在现有列表中的红球
         
         Args:
             existing_balls: 已选择的红球列表
             probability_dict: 红球概率字典
-            use_max_prob: 是否使用最大概率选择，如果为False则使用概率分布随机选择
             
         Returns:
             选择的红球号码
@@ -2087,30 +2076,18 @@ class SSQAdvancedAnalyzer:
                 valid_balls.append(ball)
                 valid_probs.append(prob)
         
-        if valid_probs:
-            if use_max_prob:
-                # 选择概率最高的球
-                max_prob_index = valid_probs.index(max(valid_probs))
-                return valid_balls[max_prob_index]
-            else:
-                # 基于概率分布随机选择
-                if sum(valid_probs) > 0:
-                    valid_probs = [p/sum(valid_probs) for p in valid_probs]
-                    return np.random.choice(valid_balls, p=valid_probs)
-                else:
-                    # 极端情况，使用均匀分布
-                    return np.random.choice(valid_balls)
+        # 重新归一化概率
+        if sum(valid_probs) > 0:
+            valid_probs = [p/sum(valid_probs) for p in valid_probs]
+            return np.random.choice(valid_balls, p=valid_probs)
         else:
-            # 极端情况，这种情况理论上不会发生
-            return min([i for i in range(1, 34) if i not in existing_balls])
+            # 极端情况，使用均匀分布
+            return np.random.choice(valid_balls)
     
-    def _select_blue_by_frequency(self, use_max_prob=True):
+    def _select_blue_by_frequency(self):
         """
         基于历史频率选择蓝球
         
-        Args:
-            use_max_prob: 是否使用最大概率选择，如果为False则使用概率分布随机选择
-            
         Returns:
             选择的蓝球号码
         """
@@ -2128,15 +2105,11 @@ class SSQAdvancedAnalyzer:
         total_blue_draws = len(self.data)
         blue_probs = {ball: count/total_blue_draws for ball, count in blue_freq.items()}
         
-        if use_max_prob:
-            # 选择概率最高的蓝球
-            max_prob_ball = max(blue_probs.items(), key=lambda x: x[1])[0]
-            return max_prob_ball
-        else:
-            # 基于概率分布随机选择
-            balls = list(blue_probs.keys())
-            probs = list(blue_probs.values())
-            return np.random.choice(balls, p=probs)
+        # 根据概率选择
+        balls = list(blue_probs.keys())
+        probs = list(blue_probs.values())
+        
+        return np.random.choice(balls, p=probs)
     
     def run_advanced_analysis(self):
         """

@@ -190,7 +190,7 @@ def show_latest(args):
 
 
 def markov_predict(args):
-    """马尔可夫链预测"""
+    """使用马尔可夫链分析历史数据并预测下一期号码"""
     # 检查高级分析模块是否可用
     if not ADVANCED_ANALYZER_AVAILABLE:
         print("错误: 高级分析模块不可用，请确保已安装所需依赖")
@@ -203,25 +203,6 @@ def markov_predict(args):
     else:
         data_file = get_data_file()
         print("将使用最近300期数据进行马尔可夫链分析")
-
-    # 检查数据文件是否存在，如果不存在则尝试爬取
-    if not os.path.exists(data_file):
-        print(f"数据文件不存在: {data_file}，尝试爬取数据...")
-        # 模拟一个args对象给crawl_cwl_data函数
-        class CrawlArgs:
-            def __init__(self, all_periods=False, count=None):
-                self.all = all_periods
-                self.count = count
-        
-        if args.use_all_data:
-            crawl_cwl_data(CrawlArgs(all_periods=True))
-        else:
-            crawl_cwl_data(CrawlArgs(count=300))
-
-        # 再次检查数据文件是否存在
-        if not os.path.exists(data_file):
-            print(f"错误: 爬取数据失败，数据文件仍不存在: {data_file}")
-            return
     
     # 检查数据文件是否存在
     if not os.path.exists(data_file):
@@ -240,9 +221,8 @@ def markov_predict(args):
     
     # 加载数据
     if not advanced_analyzer.load_data():
-        print("DEBUG: 加载数据失败，markov_predict函数返回")
+        print("加载数据失败")
         return
-    print(f"DEBUG: 数据加载成功，数据量: {len(advanced_analyzer.data)}期")
     
     # 只保留最近periods期数据进行分析
     if len(advanced_analyzer.data) > periods:
@@ -254,20 +234,18 @@ def markov_predict(args):
     
     # 执行马尔可夫链分析
     advanced_analyzer.analyze_markov_chain()
-    print("DEBUG: 马尔可夫链分析完成")
     
-    # 预测下一期号码 - 使用最大概率选择
+    # 预测下一期号码
     print("\n预测下一期号码:")
-    red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=args.explain, use_max_prob=True)
-    print(f"DEBUG: red_balls = {red_balls}, blue_ball = {blue_ball}")
+    red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=args.explain)
     formatted_numbers = format_ssq_numbers(red_balls, blue_ball)
     print(f"\n马尔可夫链预测号码: {formatted_numbers}")
     
-    # 如果需要生成多注 - 使用概率分布随机选择
+    # 如果需要生成多注
     if args.count > 1:
         print(f"\n额外预测{args.count-1}注:")
         for i in range(args.count-1):
-            red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=False, use_max_prob=False)
+            red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=False)
             formatted_numbers = format_ssq_numbers(red_balls, blue_ball)
             print(f"第{i+2}注: {formatted_numbers}")
     
@@ -586,7 +564,7 @@ def main():
         generate_numbers(args)
     elif args.command == "latest":
         show_latest(args)
-    elif args.command == "markov":
+    elif args.command == "markov_predict":
         markov_predict(args)
 
 

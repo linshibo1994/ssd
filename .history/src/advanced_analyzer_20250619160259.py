@@ -2030,19 +2030,15 @@ class SSQAdvancedAnalyzer:
         
         # 如果当前蓝球有转移概率记录
         if latest_blue in blue_transitions and blue_transitions[latest_blue]:
+            # 选择概率最高的蓝球
             candidates = list(blue_transitions[latest_blue].keys())
             probabilities = list(blue_transitions[latest_blue].values())
-            
-            if use_max_prob:
-                # 选择概率最高的蓝球
-                max_prob_index = probabilities.index(max(probabilities))
-                predicted_blue = candidates[max_prob_index]
-            else:
-                # 基于概率分布随机选择
-                predicted_blue = np.random.choice(candidates, p=probabilities)
+            # 找出概率最高的球
+            max_prob_index = probabilities.index(max(probabilities))
+            predicted_blue = candidates[max_prob_index]
         else:
             # 如果没有转移记录，使用全局蓝球频率分布
-            predicted_blue = self._select_blue_by_frequency(use_max_prob)
+            predicted_blue = self._select_blue_by_frequency()
         
         if explain:
             print("\n预测解释:")
@@ -2104,18 +2100,14 @@ class SSQAdvancedAnalyzer:
             # 极端情况，这种情况理论上不会发生
             return min([i for i in range(1, 34) if i not in existing_balls])
     
-    def _select_blue_by_frequency(self, use_max_prob=True):
+    def _select_blue_by_frequency(self):
         """
         基于历史频率选择蓝球
+        选择概率最高的球
         
-        Args:
-            use_max_prob: 是否使用最大概率选择，如果为False则使用概率分布随机选择
-            
         Returns:
             选择的蓝球号码
         """
-        import numpy as np
-        
         # 计算蓝球频率
         blue_freq = {}
         for i in range(1, 17):
@@ -2128,15 +2120,9 @@ class SSQAdvancedAnalyzer:
         total_blue_draws = len(self.data)
         blue_probs = {ball: count/total_blue_draws for ball, count in blue_freq.items()}
         
-        if use_max_prob:
-            # 选择概率最高的蓝球
-            max_prob_ball = max(blue_probs.items(), key=lambda x: x[1])[0]
-            return max_prob_ball
-        else:
-            # 基于概率分布随机选择
-            balls = list(blue_probs.keys())
-            probs = list(blue_probs.values())
-            return np.random.choice(balls, p=probs)
+        # 选择概率最高的蓝球
+        max_prob_ball = max(blue_probs.items(), key=lambda x: x[1])[0]
+        return max_prob_ball
     
     def run_advanced_analysis(self):
         """
