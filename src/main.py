@@ -190,19 +190,19 @@ def show_latest(args):
 
 
 def markov_predict(args):
-    """马尔可夫链预测"""
+    """改进的马尔可夫链预测"""
     # 检查高级分析模块是否可用
     if not ADVANCED_ANALYZER_AVAILABLE:
         print("错误: 高级分析模块不可用，请确保已安装所需依赖")
         return
-    
+
     # 确定数据文件路径
     if args.use_all_data:
         data_file = get_all_data_file()
-        print("将使用所有历史数据进行马尔可夫链分析")
+        print("将使用所有历史数据进行改进马尔可夫链分析")
     else:
         data_file = get_data_file()
-        print("将使用最近300期数据进行马尔可夫链分析")
+        print("将使用最近300期数据进行改进马尔可夫链分析")
 
     # 检查数据文件是否存在，如果不存在则尝试爬取
     if not os.path.exists(data_file):
@@ -212,7 +212,7 @@ def markov_predict(args):
             def __init__(self, all_periods=False, count=None):
                 self.all = all_periods
                 self.count = count
-        
+
         if args.use_all_data:
             crawl_cwl_data(CrawlArgs(all_periods=True))
         else:
@@ -222,73 +222,68 @@ def markov_predict(args):
         if not os.path.exists(data_file):
             print(f"错误: 爬取数据失败，数据文件仍不存在: {data_file}")
             return
-    
-    # 检查数据文件是否存在
-    if not os.path.exists(data_file):
-        print(f"错误: 数据文件不存在: {data_file}")
-        print("请先运行爬虫程序获取数据")
-        return
-    
-    # 确定分析期数
-    periods = args.periods
-    print(f"将使用近{periods}期数据进行马尔可夫链分析")
-    
-    print("开始马尔可夫链分析...")
-    
+
     # 创建高级分析器实例
     advanced_analyzer = AdvancedSSQAnalyzer(data_file)
-    
+
     # 加载数据
     if not advanced_analyzer.load_data():
-        print("DEBUG: 加载数据失败，markov_predict函数返回")
+        print("加载数据失败")
         return
-    print(f"DEBUG: 数据加载成功，数据量: {len(advanced_analyzer.data)}期")
-    
-    # 只保留最近periods期数据进行分析
-    if len(advanced_analyzer.data) > periods:
-        # 数据是按日期降序排列的，所以取前periods行
-        advanced_analyzer.data = advanced_analyzer.data.head(periods).reset_index(drop=True)
-        print(f"已筛选最近{len(advanced_analyzer.data)}期数据进行分析")
-    else:
-        print(f"警告: 数据总期数({len(advanced_analyzer.data)})小于指定期数({periods})，将使用全部可用数据")
-    
-    # 执行马尔可夫链分析
+    print(f"数据加载成功，数据量: {len(advanced_analyzer.data)}期")
+
+    # 如果指定了期数限制且不使用全部数据
+    if not args.use_all_data and hasattr(args, 'periods') and args.periods:
+        periods = args.periods
+        if len(advanced_analyzer.data) > periods:
+            # 数据是按日期降序排列的，所以取前periods行
+            advanced_analyzer.data = advanced_analyzer.data.head(periods).reset_index(drop=True)
+            print(f"已筛选最近{len(advanced_analyzer.data)}期数据进行分析")
+
+    print("开始马尔可夫链分析...")
+
+    # 执行改进的马尔可夫链分析
     advanced_analyzer.analyze_markov_chain()
-    print("DEBUG: 马尔可夫链分析完成")
-    
-    # 预测下一期号码 - 使用最大概率选择
-    print("\n预测下一期号码:")
-    red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=args.explain, use_max_prob=True)
-    print(f"DEBUG: red_balls = {red_balls}, blue_ball = {blue_ball}")
-    formatted_numbers = format_ssq_numbers(red_balls, blue_ball)
-    print(f"\n马尔可夫链预测号码: {formatted_numbers}")
-    
-    # 如果需要生成多注 - 使用概率分布随机选择
-    if args.count > 1:
-        print(f"\n额外预测{args.count-1}注:")
-        for i in range(args.count-1):
-            red_balls, blue_ball = advanced_analyzer._predict_by_markov_chain(explain=False, use_max_prob=False)
-            formatted_numbers = format_ssq_numbers(red_balls, blue_ball)
-            print(f"第{i+2}注: {formatted_numbers}")
-    
+    print("马尔可夫链分析完成")
+
+    # 使用新的多注预测方法
+    predictions = advanced_analyzer.predict_multiple_by_markov_chain(
+        count=args.count,
+        explain=args.explain
+    )
+
+    print(f"\n=== 马尔可夫链预测结果 ===")
+    for i, (red_balls, blue_ball) in enumerate(predictions):
+        formatted_numbers = format_ssq_numbers(red_balls, blue_ball)
+        print(f"第{i+1}注: {formatted_numbers}")
+
     # 与最新开奖结果比对
     if args.check_latest:
         try:
             issue, date, winning_reds, winning_blue = get_latest_draw(data_file, real_time=True)
             if issue:
                 from utils import calculate_prize
-                prize_level = calculate_prize(red_balls, blue_ball, winning_reds, winning_blue)
-                
+
                 latest_formatted = format_ssq_numbers(winning_reds, winning_blue)
                 print(f"\n最新开奖结果({issue}期): {latest_formatted}")
                 print(f"开奖日期: {date}")
-                
-                if prize_level:
-                    print(f"恭喜！中得{prize_level}等奖！")
-                else:
-                    print("很遗憾，未中奖")
+
+                # 检查每注的中奖情况
+                for i, (red_balls, blue_ball) in enumerate(predictions):
+                    prize_level = calculate_prize(red_balls, blue_ball, winning_reds, winning_blue)
+                    if prize_level:
+                        print(f"第{i+1}注: 恭喜！中得{prize_level}等奖！")
+                    else:
+                        print(f"第{i+1}注: 很遗憾，未中奖")
         except Exception as e:
             print(f"获取最新开奖结果失败: {e}")
+
+    # 如果需要准确性分析
+    if hasattr(args, 'analyze_accuracy') and args.analyze_accuracy:
+        print("\n开始准确性分析...")
+        accuracy_results = advanced_analyzer.analyze_markov_prediction_accuracy(test_periods=50)
+        if accuracy_results:
+            print("准确性分析完成，详细结果已显示")
 
 
 def fetch_latest(args):
@@ -446,12 +441,21 @@ def main():
     fetch_latest_parser = subparsers.add_parser('fetch-latest', help='获取最新一期开奖结果并保存到数据文件')
     
     # 马尔可夫链预测命令
-    markov_parser = subparsers.add_parser('markov', help='使用马尔可夫链分析历史数据并预测下一期号码')
-    markov_parser.add_argument('--periods', type=int, default=30, help='用于马尔可夫链分析的期数，默认30期')
+    markov_parser = subparsers.add_parser('markov_predict', help='使用改进的马尔可夫链分析历史数据并预测号码')
+    markov_parser.add_argument('--periods', type=int, default=300, help='用于马尔可夫链分析的期数，默认300期')
     markov_parser.add_argument('--count', type=int, default=1, help='生成号码的数量，默认1注')
     markov_parser.add_argument('--explain', action='store_true', help='显示预测号码的生成过程')
     markov_parser.add_argument('--check-latest', action='store_true', help='与最新开奖结果进行比对')
     markov_parser.add_argument('--use-all-data', action='store_true', help='使用所有历史数据进行马尔可夫链分析')
+    markov_parser.add_argument('--analyze-accuracy', action='store_true', help='分析预测准确性（回测）')
+
+    # 保持原有的markov命令以兼容性
+    markov_legacy_parser = subparsers.add_parser('markov', help='使用马尔可夫链分析历史数据并预测下一期号码（兼容模式）')
+    markov_legacy_parser.add_argument('--periods', type=int, default=30, help='用于马尔可夫链分析的期数，默认30期')
+    markov_legacy_parser.add_argument('--count', type=int, default=1, help='生成号码的数量，默认1注')
+    markov_legacy_parser.add_argument('--explain', action='store_true', help='显示预测号码的生成过程')
+    markov_legacy_parser.add_argument('--check-latest', action='store_true', help='与最新开奖结果进行比对')
+    markov_legacy_parser.add_argument('--use-all-data', action='store_true', help='使用所有历史数据进行马尔可夫链分析')
 
     
     # 解析命令行参数
@@ -586,7 +590,10 @@ def main():
         generate_numbers(args)
     elif args.command == "latest":
         show_latest(args)
+    elif args.command == "markov_predict":
+        markov_predict(args)
     elif args.command == "markov":
+        # 兼容模式：使用原有的简单马尔可夫链预测
         markov_predict(args)
 
 
