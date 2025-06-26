@@ -278,9 +278,15 @@ smart_numbers = analyzer.generate_smart_numbers("frequency")
 - `data/ssq_data.csv`：最近300期数据
 - `data/ssq_data_all.csv`：所有历史数据
 
-### 分析结果
+### 分析结果文件
 - `data/advanced/enhanced_markov_chain_analysis.json`：完整马尔可夫链分析
-- `data/advanced/markov_chain_analysis.json`：兼容格式分析结果
+- `data/advanced/statistical_features.json`：统计特性分析结果
+- `data/advanced/probability_distribution.json`：概率分布分析结果
+- `data/advanced/frequency_patterns.json`：频率模式分析结果
+- `data/advanced/decision_tree_analysis.json`：决策树分析结果
+- `data/advanced/cycle_patterns.json`：周期分析结果
+- `data/advanced/historical_correlation.json`：历史关联性分析结果
+- `data/advanced/issue_number_correlation.json`：期号关联性分析结果
 
 ### 可视化图表
 - `data/number_frequency.png`：号码频率图
@@ -319,14 +325,15 @@ MIT License
 5. **文档更新**：更新使用文档和示例
 
 ### 测试验证
-✅ 数据爬取功能正常
-✅ 基础分析功能正常
-✅ 高级分析功能正常
-✅ 马尔可夫链预测正常
-✅ 集成预测功能正常
-✅ 号码生成功能正常
-✅ 命令行界面正常
-✅ 可视化输出正常
+✅ 数据爬取功能正常（官方网站+中彩网）
+✅ 基础分析功能正常（频率、组合、走势）
+✅ 高级分析功能正常（9种分析方法）
+✅ 马尔可夫链预测正常（多维度转移概率）
+✅ 多种预测方法正常（6种预测算法）
+✅ 号码生成功能正常（4种生成策略）
+✅ 命令行界面正常（完整CLI支持）
+✅ 可视化输出正常（图表和热力图）
+✅ 准确性分析正常（回测验证）
 
 ---
 
