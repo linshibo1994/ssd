@@ -1493,6 +1493,177 @@ class SSQAnalyzer:
 
         return results
 
+    def _analyze_markov_chain_stability(self, data):
+        """基于指定期数数据的马尔可夫链稳定性分析"""
+        print(f"进行马尔可夫链稳定性概率统计...")
+
+        # 按期号排序，确保从最早期到最新期的顺序
+        sorted_data = data.sort_values('issue', ascending=True).reset_index(drop=True)
+
+        # 初始化结果字典
+        results = {
+            '红球稳定性转移概率': {},
+            '红球位置稳定性概率': {},
+            '蓝球稳定性转移概率': {},
+            '稳定性统计': {},
+            '概率置信度': {}
+        }
+
+        print(f"分析{len(sorted_data)}期数据的转移稳定性...")
+
+        # 1. 分析红球全局稳定性转移概率
+        red_global_transitions = {}
+        red_transition_counts = {}
+
+        for i in range(len(sorted_data) - 1):
+            current_reds = [sorted_data.iloc[i][f'red_{j}'] for j in range(1, 7)]
+            next_reds = [sorted_data.iloc[i + 1][f'red_{j}'] for j in range(1, 7)]
+
+            for current_ball in current_reds:
+                if current_ball not in red_global_transitions:
+                    red_global_transitions[current_ball] = {}
+                    red_transition_counts[current_ball] = 0
+
+                red_transition_counts[current_ball] += 1
+
+                for next_ball in next_reds:
+                    if next_ball not in red_global_transitions[current_ball]:
+                        red_global_transitions[current_ball][next_ball] = 0
+                    red_global_transitions[current_ball][next_ball] += 1
+
+        # 计算稳定性概率（考虑样本数量的置信度）
+        red_stability_probs = {}
+        for current, nexts in red_global_transitions.items():
+            total_transitions = red_transition_counts[current]
+            total_next_count = sum(nexts.values())
+
+            # 计算稳定性权重（样本数越多，稳定性越高）
+            stability_weight = min(1.0, total_transitions / 10.0)  # 10次以上转移认为稳定
+
+            red_stability_probs[current] = {}
+            for next_ball, count in nexts.items():
+                base_prob = count / total_next_count
+                # 稳定性调整概率
+                stability_prob = base_prob * stability_weight + (1 - stability_weight) * (1/33)
+                red_stability_probs[current][next_ball] = {
+                    '概率': stability_prob,
+                    '原始概率': base_prob,
+                    '出现次数': count,
+                    '总转移次数': total_transitions,
+                    '稳定性权重': stability_weight
+                }
+
+        results['红球稳定性转移概率'] = red_stability_probs
+
+        # 2. 分析红球位置稳定性概率
+        for pos in range(1, 7):
+            red_col = f'red_{pos}'
+            position_transitions = {}
+            position_counts = {}
+
+            for i in range(len(sorted_data) - 1):
+                current_ball = sorted_data.iloc[i][red_col]
+                next_ball = sorted_data.iloc[i + 1][red_col]
+
+                if current_ball not in position_transitions:
+                    position_transitions[current_ball] = {}
+                    position_counts[current_ball] = 0
+
+                position_counts[current_ball] += 1
+
+                if next_ball not in position_transitions[current_ball]:
+                    position_transitions[current_ball][next_ball] = 0
+
+                position_transitions[current_ball][next_ball] += 1
+
+            # 计算位置稳定性概率
+            position_stability_probs = {}
+            for current, nexts in position_transitions.items():
+                total_transitions = position_counts[current]
+                total_next_count = sum(nexts.values())
+
+                stability_weight = min(1.0, total_transitions / 5.0)  # 位置转移5次以上认为稳定
+
+                position_stability_probs[current] = {}
+                for next_ball, count in nexts.items():
+                    base_prob = count / total_next_count
+                    stability_prob = base_prob * stability_weight + (1 - stability_weight) * (1/33)
+                    position_stability_probs[current][next_ball] = {
+                        '概率': stability_prob,
+                        '原始概率': base_prob,
+                        '出现次数': count,
+                        '总转移次数': total_transitions,
+                        '稳定性权重': stability_weight
+                    }
+
+            results['红球位置稳定性概率'][pos] = position_stability_probs
+
+        # 3. 分析蓝球稳定性转移概率
+        blue_transitions = {}
+        blue_counts = {}
+
+        for i in range(len(sorted_data) - 1):
+            current_ball = sorted_data.iloc[i]['blue_ball']
+            next_ball = sorted_data.iloc[i + 1]['blue_ball']
+
+            if current_ball not in blue_transitions:
+                blue_transitions[current_ball] = {}
+                blue_counts[current_ball] = 0
+
+            blue_counts[current_ball] += 1
+
+            if next_ball not in blue_transitions[current_ball]:
+                blue_transitions[current_ball][next_ball] = 0
+
+            blue_transitions[current_ball][next_ball] += 1
+
+        # 计算蓝球稳定性概率
+        blue_stability_probs = {}
+        for current, nexts in blue_transitions.items():
+            total_transitions = blue_counts[current]
+            total_next_count = sum(nexts.values())
+
+            stability_weight = min(1.0, total_transitions / 3.0)  # 蓝球3次以上转移认为稳定
+
+            blue_stability_probs[current] = {}
+            for next_ball, count in nexts.items():
+                base_prob = count / total_next_count
+                stability_prob = base_prob * stability_weight + (1 - stability_weight) * (1/16)
+                blue_stability_probs[current][next_ball] = {
+                    '概率': stability_prob,
+                    '原始概率': base_prob,
+                    '出现次数': count,
+                    '总转移次数': total_transitions,
+                    '稳定性权重': stability_weight
+                }
+
+        results['蓝球稳定性转移概率'] = blue_stability_probs
+
+        # 4. 计算整体稳定性统计
+        total_red_states = len(red_stability_probs)
+        stable_red_states = sum(1 for probs in red_stability_probs.values()
+                               if any(info['稳定性权重'] >= 0.5 for info in probs.values()))
+
+        total_blue_states = len(blue_stability_probs)
+        stable_blue_states = sum(1 for probs in blue_stability_probs.values()
+                                if any(info['稳定性权重'] >= 0.5 for info in probs.values()))
+
+        results['稳定性统计'] = {
+            '红球总状态数': total_red_states,
+            '红球稳定状态数': stable_red_states,
+            '红球稳定性比例': stable_red_states / total_red_states if total_red_states > 0 else 0,
+            '蓝球总状态数': total_blue_states,
+            '蓝球稳定状态数': stable_blue_states,
+            '蓝球稳定性比例': stable_blue_states / total_blue_states if total_blue_states > 0 else 0,
+            '分析期数': len(sorted_data)
+        }
+
+        print(f"稳定性分析完成:")
+        print(f"  红球稳定状态: {stable_red_states}/{total_red_states} ({stable_red_states/total_red_states*100:.1f}%)")
+        print(f"  蓝球稳定状态: {stable_blue_states}/{total_blue_states} ({stable_blue_states/total_blue_states*100:.1f}%)")
+
+        return results
+
     def _visualize_markov_chain(self, results):
         """可视化马尔可夫链分析结果"""
         try:
@@ -1762,13 +1933,13 @@ class SSQAnalyzer:
         return predictions
 
     def predict_by_markov_chain_with_periods(self, periods=None, count=1, explain=True):
-        """基于指定期数的马尔可夫链预测"""
+        """基于指定期数的马尔可夫链稳定性概率预测"""
         if self.data is None:
             if not self.load_data():
                 return []
 
         print(f"\n{'='*60}")
-        print(f"基于马尔可夫链的指定期数预测")
+        print(f"基于马尔可夫链稳定性概率的指定期数预测")
         print(f"{'='*60}")
 
         # 如果指定了期数，使用指定期数的数据
@@ -1776,19 +1947,22 @@ class SSQAnalyzer:
             if len(self.data) < periods:
                 print(f"警告: 可用数据({len(self.data)}期)少于指定期数({periods}期)，将使用全部数据")
                 analysis_data = self.data.copy()
+                actual_periods = len(analysis_data)
             else:
                 analysis_data = self.data.head(periods).copy()
-                print(f"使用最近{periods}期数据进行分析")
+                actual_periods = periods
+                print(f"使用最近{periods}期数据进行马尔可夫链稳定性分析")
         else:
             analysis_data = self.data.copy()
-            print(f"使用全部{len(analysis_data)}期数据进行分析")
+            actual_periods = len(analysis_data)
+            print(f"使用全部{len(analysis_data)}期数据进行马尔可夫链稳定性分析")
 
         print(f"分析数据期数: {len(analysis_data)}期")
         print(f"数据范围: {analysis_data.iloc[-1]['issue']}期 - {analysis_data.iloc[0]['issue']}期")
 
-        # 基于指定数据进行马尔可夫链分析
-        print("\n开始马尔可夫链分析...")
-        markov_results = self._analyze_markov_chain_simple(analysis_data)
+        # 基于指定数据进行深度马尔可夫链稳定性分析
+        print(f"\n开始基于{actual_periods}期数据的马尔可夫链稳定性分析...")
+        markov_results = self._analyze_markov_chain_stability(analysis_data)
 
         # 获取最近一期的号码作为预测基础
         latest_data = analysis_data.iloc[0]
@@ -1799,33 +1973,31 @@ class SSQAnalyzer:
         print(f"最近一期: {latest_data['issue']}期 ({latest_data['date']})")
         print(f"开奖号码: 红球 {' '.join([f'{ball:02d}' for ball in latest_reds])} | 蓝球 {latest_blue:02d}")
 
-        # 进行多注预测
+        # 进行多注预测，每注都基于稳定性概率
         predictions = []
 
         for i in range(count):
-            print(f"\n{'='*40}")
-            print(f"第{i+1}注预测过程")
-            print(f"{'='*40}")
+            print(f"\n{'='*50}")
+            print(f"第{i+1}注基于{actual_periods}期稳定性概率预测")
+            print(f"{'='*50}")
 
-            # 第一注使用最大概率，后续注数使用随机选择
-            use_max_prob = (i == 0)
-
-            predicted_reds, predicted_blue = self._predict_with_detailed_process(
-                markov_results, latest_reds, latest_blue, use_max_prob, explain
+            predicted_reds, predicted_blue = self._predict_with_stability_analysis(
+                markov_results, latest_reds, latest_blue, actual_periods, i+1, explain
             )
 
             predictions.append((predicted_reds, predicted_blue))
 
             formatted = self.format_numbers(predicted_reds, predicted_blue)
-            print(f"\n第{i+1}注预测结果: {formatted}")
+            print(f"\n第{i+1}注最稳定概率预测结果: {formatted}")
 
-        # 显示预测汇总
+        # 显示预测汇总和稳定性分析
         print(f"\n{'='*60}")
-        print(f"预测结果汇总")
+        print(f"基于{actual_periods}期数据的稳定性预测汇总")
         print(f"{'='*60}")
-        print(f"分析期数: {len(analysis_data)}期")
+        print(f"分析期数: {actual_periods}期")
         print(f"预测注数: {count}注")
         print(f"预测基础: {latest_data['issue']}期")
+        print(f"预测方法: 马尔可夫链稳定性概率分析")
 
         for i, (red_balls, blue_ball) in enumerate(predictions):
             formatted = self.format_numbers(red_balls, blue_ball)
@@ -2029,6 +2201,203 @@ class SSQAnalyzer:
             predicted_sum = sum(predicted_reds)
 
             print(f"\n组合特征对比:")
+            print(f"  奇偶比: {current_odd_count}:{6-current_odd_count} -> {predicted_odd_count}:{6-predicted_odd_count}")
+            print(f"  大小比: {current_big_count}:{6-current_big_count} -> {predicted_big_count}:{6-predicted_big_count}")
+            print(f"  和值: {current_sum} -> {predicted_sum}")
+            print(f"  跨度: {max(latest_reds) - min(latest_reds)} -> {max(predicted_reds) - min(predicted_reds)}")
+
+        return predicted_reds, predicted_blue
+
+    def _predict_with_stability_analysis(self, stability_results, latest_reds, latest_blue, periods, prediction_num, explain):
+        """基于稳定性分析的预测方法"""
+        red_stability_probs = stability_results['红球稳定性转移概率']
+        red_position_probs = stability_results['红球位置稳定性概率']
+        blue_stability_probs = stability_results['蓝球稳定性转移概率']
+        stability_stats = stability_results['稳定性统计']
+
+        if explain:
+            print(f"基于{periods}期数据的稳定性概率预测分析:")
+            print(f"红球稳定性: {stability_stats['红球稳定性比例']:.1%}")
+            print(f"蓝球稳定性: {stability_stats['蓝球稳定性比例']:.1%}")
+
+        # 预测红球 - 基于稳定性概率
+        predicted_reds = []
+        used_balls = set()
+
+        if explain:
+            print(f"\n红球稳定性概率预测过程:")
+
+        # 策略1: 基于位置稳定性概率预测前3个红球
+        for pos in range(1, 4):
+            current_ball = latest_reds[pos - 1]
+
+            if pos in red_position_probs and current_ball in red_position_probs[pos]:
+                candidates_info = red_position_probs[pos][current_ball]
+
+                # 过滤已使用的球并按稳定性概率排序
+                available_candidates = []
+                for next_ball, info in candidates_info.items():
+                    if next_ball not in used_balls:
+                        available_candidates.append((next_ball, info))
+
+                if available_candidates:
+                    # 选择稳定性概率最高的球（第一注）或次高的球（后续注数）
+                    available_candidates.sort(key=lambda x: x[1]['概率'], reverse=True)
+                    choice_index = min(prediction_num - 1, len(available_candidates) - 1)
+                    next_ball, info = available_candidates[choice_index]
+
+                    predicted_reds.append(next_ball)
+                    used_balls.add(next_ball)
+
+                    if explain:
+                        print(f"  位置{pos}: {current_ball:02d} -> {next_ball:02d}")
+                        print(f"    稳定性概率: {info['概率']:.4f}")
+                        print(f"    原始概率: {info['原始概率']:.4f}")
+                        print(f"    出现次数: {info['出现次数']}/{info['总转移次数']}")
+                        print(f"    稳定性权重: {info['稳定性权重']:.3f}")
+                        print(f"    候选数量: {len(available_candidates)}")
+
+        # 策略2: 基于全局稳定性概率预测剩余红球
+        if explain and len(predicted_reds) < 6:
+            print(f"  继续使用全局稳定性概率预测剩余{6-len(predicted_reds)}个红球...")
+
+        for current_ball in latest_reds:
+            if len(predicted_reds) >= 6:
+                break
+
+            if current_ball in red_stability_probs:
+                candidates_info = red_stability_probs[current_ball]
+
+                # 过滤已使用的球并按稳定性概率排序
+                available_candidates = []
+                for next_ball, info in candidates_info.items():
+                    if next_ball not in used_balls:
+                        available_candidates.append((next_ball, info))
+
+                if available_candidates:
+                    # 选择稳定性概率最高的球（第一注）或次高的球（后续注数）
+                    available_candidates.sort(key=lambda x: x[1]['概率'], reverse=True)
+                    choice_index = min(prediction_num - 1, len(available_candidates) - 1)
+                    next_ball, info = available_candidates[choice_index]
+
+                    if next_ball not in used_balls:
+                        predicted_reds.append(next_ball)
+                        used_balls.add(next_ball)
+
+                        if explain:
+                            print(f"  全局转移: {current_ball:02d} -> {next_ball:02d}")
+                            print(f"    稳定性概率: {info['概率']:.4f}")
+                            print(f"    原始概率: {info['原始概率']:.4f}")
+                            print(f"    出现次数: {info['出现次数']}/{info['总转移次数']}")
+                            print(f"    稳定性权重: {info['稳定性权重']:.3f}")
+                            print(f"    候选数量: {len(available_candidates)}")
+
+        # 策略3: 如果还不够6个，使用频率分布补充
+        while len(predicted_reds) < 6:
+            # 计算基于当前数据的频率分布
+            red_freq = {}
+            for i in range(1, 34):
+                red_freq[i] = 0
+
+            for _, row in self.data.iterrows():
+                for j in range(1, 7):
+                    red_freq[row[f'red_{j}']] += 1
+
+            total_red_count = sum(red_freq.values())
+            red_freq = {ball: count / total_red_count for ball, count in red_freq.items()}
+
+            # 选择频率最高且未使用的球
+            available_balls = [(ball, freq) for ball, freq in red_freq.items() if ball not in used_balls]
+
+            if available_balls:
+                available_balls.sort(key=lambda x: x[1], reverse=True)
+                next_ball = available_balls[0][0]
+                freq = available_balls[0][1]
+
+                predicted_reds.append(next_ball)
+                used_balls.add(next_ball)
+
+                if explain:
+                    print(f"  频率补充: {next_ball:02d} (频率: {freq:.4f})")
+            else:
+                # 随机补充
+                remaining_balls = [i for i in range(1, 34) if i not in used_balls]
+                if remaining_balls:
+                    next_ball = random.choice(remaining_balls)
+                    predicted_reds.append(next_ball)
+                    used_balls.add(next_ball)
+
+                    if explain:
+                        print(f"  随机补充: {next_ball:02d}")
+
+        predicted_reds.sort()
+
+        # 预测蓝球 - 基于稳定性概率
+        if explain:
+            print(f"\n蓝球稳定性概率预测过程:")
+
+        if latest_blue in blue_stability_probs:
+            candidates_info = blue_stability_probs[latest_blue]
+
+            # 选择稳定性概率最高的蓝球（第一注）或次高的球（后续注数）
+            sorted_candidates = sorted(candidates_info.items(), key=lambda x: x[1]['概率'], reverse=True)
+            choice_index = min(prediction_num - 1, len(sorted_candidates) - 1)
+            predicted_blue, info = sorted_candidates[choice_index]
+
+            if explain:
+                print(f"  蓝球转移: {latest_blue:02d} -> {predicted_blue:02d}")
+                print(f"    稳定性概率: {info['概率']:.4f}")
+                print(f"    原始概率: {info['原始概率']:.4f}")
+                print(f"    出现次数: {info['出现次数']}/{info['总转移次数']}")
+                print(f"    稳定性权重: {info['稳定性权重']:.3f}")
+                print(f"    候选数量: {len(candidates_info)}")
+        else:
+            # 使用频率分布
+            blue_freq = {}
+            for i in range(1, 17):
+                blue_freq[i] = 0
+
+            for _, row in self.data.iterrows():
+                blue_freq[row['blue_ball']] += 1
+
+            total_blue_count = sum(blue_freq.values())
+            blue_freq = {ball: count / total_blue_count for ball, count in blue_freq.items()}
+
+            predicted_blue = max(blue_freq.items(), key=lambda x: x[1])[0]
+
+            if explain:
+                print(f"  蓝球频率: {predicted_blue:02d} (频率: {blue_freq[predicted_blue]:.4f})")
+
+        # 稳定性验证和组合特征分析
+        if explain:
+            print(f"\n稳定性验证和组合特征分析:")
+
+            # 计算预测结果的稳定性得分
+            red_stability_score = 0
+            for ball in predicted_reds:
+                for current_ball in latest_reds:
+                    if current_ball in red_stability_probs and ball in red_stability_probs[current_ball]:
+                        red_stability_score += red_stability_probs[current_ball][ball]['稳定性权重']
+
+            red_stability_score /= len(predicted_reds)
+
+            blue_stability_score = 0
+            if latest_blue in blue_stability_probs and predicted_blue in blue_stability_probs[latest_blue]:
+                blue_stability_score = blue_stability_probs[latest_blue][predicted_blue]['稳定性权重']
+
+            print(f"  红球平均稳定性得分: {red_stability_score:.3f}")
+            print(f"  蓝球稳定性得分: {blue_stability_score:.3f}")
+
+            # 组合特征对比
+            current_odd_count = sum(1 for x in latest_reds if x % 2 == 1)
+            predicted_odd_count = sum(1 for x in predicted_reds if x % 2 == 1)
+
+            current_big_count = sum(1 for x in latest_reds if x >= 17)
+            predicted_big_count = sum(1 for x in predicted_reds if x >= 17)
+
+            current_sum = sum(latest_reds)
+            predicted_sum = sum(predicted_reds)
+
             print(f"  奇偶比: {current_odd_count}:{6-current_odd_count} -> {predicted_odd_count}:{6-predicted_odd_count}")
             print(f"  大小比: {current_big_count}:{6-current_big_count} -> {predicted_big_count}:{6-predicted_big_count}")
             print(f"  和值: {current_sum} -> {predicted_sum}")
