@@ -283,9 +283,9 @@ class SSQAnalyzer:
         """保存数据到CSV文件"""
         if not results:
             return
-        
+
         file_path = os.path.join(self.data_dir, filename)
-        
+
         # 检查文件是否已存在
         existing_data = {}
         if os.path.exists(file_path):
@@ -296,26 +296,212 @@ class SSQAnalyzer:
                         existing_data[row['issue']] = row
             except Exception:
                 pass
-        
+
         # 合并数据
         all_data = {}
         for issue, row in existing_data.items():
             all_data[issue] = row
-        
+
         for row in results:
             all_data[row['issue']] = row
-        
+
         # 排序并保存
         sorted_data = list(all_data.values())
         sorted_data.sort(key=lambda x: int(x['issue']), reverse=True)
-        
+
         with open(file_path, 'w', encoding='utf-8', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=['issue', 'date', 'red_balls', 'blue_ball'])
             writer.writeheader()
             for row in sorted_data:
                 writer.writerow(row)
-        
+
         print(f"数据已保存到 {file_path}")
+
+    def append_to_csv(self, new_results, filename):
+        """追加新数据到CSV文件，按期号倒序排列"""
+        if not new_results:
+            print("没有新数据需要追加")
+            return
+
+        file_path = os.path.join(self.data_dir, filename)
+
+        # 读取现有数据
+        existing_data = {}
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        existing_data[row['issue']] = row
+                print(f"读取现有数据: {len(existing_data)}期")
+            except Exception as e:
+                print(f"读取现有数据失败: {e}")
+
+        # 检查新数据
+        new_count = 0
+        updated_count = 0
+
+        for row in new_results:
+            issue = row['issue']
+            if issue in existing_data:
+                # 更新现有数据
+                existing_data[issue] = row
+                updated_count += 1
+            else:
+                # 添加新数据
+                existing_data[issue] = row
+                new_count += 1
+
+        # 按期号倒序排列
+        sorted_data = list(existing_data.values())
+        sorted_data.sort(key=lambda x: int(x['issue']), reverse=True)
+
+        # 保存到文件
+        with open(file_path, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=['issue', 'date', 'red_balls', 'blue_ball'])
+            writer.writeheader()
+            for row in sorted_data:
+                writer.writerow(row)
+
+        print(f"数据追加完成: 新增{new_count}期，更新{updated_count}期，总计{len(sorted_data)}期")
+
+        # 显示最新几期数据
+        if new_count > 0:
+            print("最新追加的数据:")
+            for i, row in enumerate(sorted_data[:min(3, new_count)]):
+                print(f"  {row['issue']}期 ({row['date']}): 红球 {row['red_balls']} | 蓝球 {row['blue_ball']}")
+
+    def crawl_specific_periods(self, start_issue=None, end_issue=None, count=None):
+        """爬取指定期数的数据"""
+        print(f"爬取指定期数数据...")
+
+        if start_issue and end_issue:
+            print(f"爬取期数范围: {start_issue} - {end_issue}")
+        elif count:
+            print(f"爬取最新{count}期数据")
+
+        # 从官方网站获取数据
+        results = []
+
+        try:
+            page_size = 30
+            page = 1
+            target_count = count if count else 1000
+
+            while len(results) < target_count and page <= 100:  # 最多100页
+                print(f"正在获取第{page}页数据...")
+
+                params = {
+                    "name": "ssq",
+                    "pageNo": page,
+                    "pageSize": page_size,
+                    "systemType": "PC"
+                }
+
+                response = requests.get(self.api_url, headers=self.headers, params=params, timeout=10)
+                response.raise_for_status()
+
+                data = response.json()
+
+                if data.get("state") == 0 and "result" in data:
+                    page_results = []
+                    for item in data["result"]:
+                        issue = item["code"]
+                        issue_num = int(issue)
+
+                        # 检查是否在指定范围内
+                        if start_issue and end_issue:
+                            if not (int(start_issue) <= issue_num <= int(end_issue)):
+                                continue
+
+                        date = item["date"]
+                        red_str = item["red"]
+                        blue_ball = item["blue"]
+
+                        red_balls = red_str.split(",")
+                        red_balls = [ball.zfill(2) for ball in red_balls]
+                        blue_ball = blue_ball.zfill(2)
+
+                        page_results.append({
+                            "issue": issue,
+                            "date": date,
+                            "red_balls": ",".join(red_balls),
+                            "blue_ball": blue_ball
+                        })
+
+                    results.extend(page_results)
+
+                    # 如果这页没有数据或数据不足，可能已经到底了
+                    if len(page_results) < page_size:
+                        break
+                else:
+                    break
+
+                page += 1
+                time.sleep(random.uniform(1, 2))
+
+                # 如果指定了数量限制
+                if count and len(results) >= count:
+                    results = results[:count]
+                    break
+
+            print(f"成功爬取{len(results)}期数据")
+            return results
+
+        except Exception as e:
+            print(f"爬取数据失败: {e}")
+            return []
+
+    def fetch_and_append_latest(self, filename="ssq_data.csv"):
+        """获取最新一期开奖结果并追加到CSV文件"""
+        print("获取最新一期开奖结果...")
+
+        try:
+            # 从官方API获取最新一期
+            params = {
+                "name": "ssq",
+                "pageNo": 1,
+                "pageSize": 1,
+                "systemType": "PC"
+            }
+
+            response = requests.get(self.api_url, headers=self.headers, params=params, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if data.get("state") == 0 and "result" in data and data["result"]:
+                item = data["result"][0]
+                issue = item["code"]
+                date = item["date"]
+                red_str = item["red"]
+                blue_ball = item["blue"]
+
+                red_balls = red_str.split(",")
+                red_balls = [ball.zfill(2) for ball in red_balls]
+                blue_ball = blue_ball.zfill(2)
+
+                latest_result = [{
+                    "issue": issue,
+                    "date": date,
+                    "red_balls": ",".join(red_balls),
+                    "blue_ball": blue_ball
+                }]
+
+                print(f"获取到最新开奖: {issue}期 ({date})")
+                print(f"开奖号码: 红球 {','.join(red_balls)} | 蓝球 {blue_ball}")
+
+                # 追加到文件
+                self.append_to_csv(latest_result, filename)
+
+                return latest_result[0]
+            else:
+                print("未获取到最新开奖数据")
+                return None
+
+        except Exception as e:
+            print(f"获取最新开奖失败: {e}")
+            return None
     
     # ==================== 数据加载和验证 ====================
     
@@ -1575,6 +1761,281 @@ class SSQAnalyzer:
 
         return predictions
 
+    def predict_by_markov_chain_with_periods(self, periods=None, count=1, explain=True):
+        """基于指定期数的马尔可夫链预测"""
+        if self.data is None:
+            if not self.load_data():
+                return []
+
+        print(f"\n{'='*60}")
+        print(f"基于马尔可夫链的指定期数预测")
+        print(f"{'='*60}")
+
+        # 如果指定了期数，使用指定期数的数据
+        if periods:
+            if len(self.data) < periods:
+                print(f"警告: 可用数据({len(self.data)}期)少于指定期数({periods}期)，将使用全部数据")
+                analysis_data = self.data.copy()
+            else:
+                analysis_data = self.data.head(periods).copy()
+                print(f"使用最近{periods}期数据进行分析")
+        else:
+            analysis_data = self.data.copy()
+            print(f"使用全部{len(analysis_data)}期数据进行分析")
+
+        print(f"分析数据期数: {len(analysis_data)}期")
+        print(f"数据范围: {analysis_data.iloc[-1]['issue']}期 - {analysis_data.iloc[0]['issue']}期")
+
+        # 基于指定数据进行马尔可夫链分析
+        print("\n开始马尔可夫链分析...")
+        markov_results = self._analyze_markov_chain_simple(analysis_data)
+
+        # 获取最近一期的号码作为预测基础
+        latest_data = analysis_data.iloc[0]
+        latest_reds = [latest_data[f'red_{i}'] for i in range(1, 7)]
+        latest_blue = latest_data['blue_ball']
+
+        print(f"\n预测基础数据:")
+        print(f"最近一期: {latest_data['issue']}期 ({latest_data['date']})")
+        print(f"开奖号码: 红球 {' '.join([f'{ball:02d}' for ball in latest_reds])} | 蓝球 {latest_blue:02d}")
+
+        # 进行多注预测
+        predictions = []
+
+        for i in range(count):
+            print(f"\n{'='*40}")
+            print(f"第{i+1}注预测过程")
+            print(f"{'='*40}")
+
+            # 第一注使用最大概率，后续注数使用随机选择
+            use_max_prob = (i == 0)
+
+            predicted_reds, predicted_blue = self._predict_with_detailed_process(
+                markov_results, latest_reds, latest_blue, use_max_prob, explain
+            )
+
+            predictions.append((predicted_reds, predicted_blue))
+
+            formatted = self.format_numbers(predicted_reds, predicted_blue)
+            print(f"\n第{i+1}注预测结果: {formatted}")
+
+        # 显示预测汇总
+        print(f"\n{'='*60}")
+        print(f"预测结果汇总")
+        print(f"{'='*60}")
+        print(f"分析期数: {len(analysis_data)}期")
+        print(f"预测注数: {count}注")
+        print(f"预测基础: {latest_data['issue']}期")
+
+        for i, (red_balls, blue_ball) in enumerate(predictions):
+            formatted = self.format_numbers(red_balls, blue_ball)
+            print(f"第{i+1}注: {formatted}")
+
+        return predictions
+
+    def _predict_with_detailed_process(self, markov_results, latest_reds, latest_blue, use_max_prob, explain):
+        """详细预测过程"""
+        red_global_probs = markov_results['红球全局转移概率']
+        red_position_probs = markov_results['红球位置转移概率']
+        blue_probs = markov_results['蓝球转移概率']
+
+        if explain:
+            print(f"预测策略: {'最大概率选择' if use_max_prob else '概率分布随机选择'}")
+            print(f"转移概率统计: 红球全局{len(red_global_probs)}个状态, 蓝球{len(blue_probs)}个状态")
+
+        # 计算全局红球频率分布
+        red_freq = {}
+        for i in range(1, 34):
+            red_freq[i] = 0
+
+        for _, row in self.data.iterrows():
+            for j in range(1, 7):
+                red_freq[row[f'red_{j}']] += 1
+
+        total_red_count = sum(red_freq.values())
+        red_freq = {ball: count / total_red_count for ball, count in red_freq.items()}
+
+        # 预测红球
+        predicted_reds = []
+        used_balls = set()
+        prediction_details = []
+
+        if explain:
+            print(f"\n红球预测过程:")
+
+        # 策略1: 基于位置转移概率预测前3个红球
+        for pos in range(1, 4):
+            current_ball = latest_reds[pos - 1]
+
+            if pos in red_position_probs and current_ball in red_position_probs[pos]:
+                candidates = list(red_position_probs[pos][current_ball].keys())
+                probabilities = list(red_position_probs[pos][current_ball].values())
+
+                # 过滤已使用的球
+                filtered_candidates = []
+                filtered_probs = []
+                for i, candidate in enumerate(candidates):
+                    if candidate not in used_balls:
+                        filtered_candidates.append(candidate)
+                        filtered_probs.append(probabilities[i])
+
+                if filtered_candidates:
+                    if use_max_prob:
+                        max_idx = filtered_probs.index(max(filtered_probs))
+                        next_ball = filtered_candidates[max_idx]
+                        prob = filtered_probs[max_idx]
+                    else:
+                        prob_sum = sum(filtered_probs)
+                        normalized_probs = [p / prob_sum for p in filtered_probs]
+                        next_ball = np.random.choice(filtered_candidates, p=normalized_probs)
+                        prob = red_position_probs[pos][current_ball][next_ball]
+
+                    predicted_reds.append(next_ball)
+                    used_balls.add(next_ball)
+
+                    detail = f"位置{pos}: {current_ball:02d} -> {next_ball:02d} (概率: {prob:.4f}, 候选数: {len(filtered_candidates)})"
+                    prediction_details.append(detail)
+
+                    if explain:
+                        print(f"  {detail}")
+
+        # 策略2: 基于全局转移概率预测剩余红球
+        if explain and len(predicted_reds) < 6:
+            print(f"  继续使用全局转移概率预测剩余{6-len(predicted_reds)}个红球...")
+
+        for current_ball in latest_reds:
+            if len(predicted_reds) >= 6:
+                break
+
+            if current_ball in red_global_probs:
+                candidates = list(red_global_probs[current_ball].keys())
+                probabilities = list(red_global_probs[current_ball].values())
+
+                # 过滤已使用的球
+                filtered_candidates = []
+                filtered_probs = []
+                for i, candidate in enumerate(candidates):
+                    if candidate not in used_balls:
+                        filtered_candidates.append(candidate)
+                        filtered_probs.append(probabilities[i])
+
+                if filtered_candidates:
+                    if use_max_prob:
+                        max_idx = filtered_probs.index(max(filtered_probs))
+                        next_ball = filtered_candidates[max_idx]
+                        prob = filtered_probs[max_idx]
+                    else:
+                        prob_sum = sum(filtered_probs)
+                        normalized_probs = [p / prob_sum for p in filtered_probs]
+                        next_ball = np.random.choice(filtered_candidates, p=normalized_probs)
+                        prob = red_global_probs[current_ball][next_ball]
+
+                    if next_ball not in used_balls:
+                        predicted_reds.append(next_ball)
+                        used_balls.add(next_ball)
+
+                        detail = f"全局转移: {current_ball:02d} -> {next_ball:02d} (概率: {prob:.4f}, 候选数: {len(filtered_candidates)})"
+                        prediction_details.append(detail)
+
+                        if explain:
+                            print(f"  {detail}")
+
+        # 策略3: 频率分布补充
+        while len(predicted_reds) < 6:
+            available_balls = [(ball, freq) for ball, freq in red_freq.items() if ball not in used_balls]
+
+            if available_balls:
+                if use_max_prob:
+                    available_balls.sort(key=lambda x: x[1], reverse=True)
+                    next_ball = available_balls[0][0]
+                    freq = available_balls[0][1]
+                else:
+                    balls, freqs = zip(*available_balls)
+                    next_ball = np.random.choice(balls, p=np.array(freqs) / sum(freqs))
+                    freq = red_freq[next_ball]
+
+                predicted_reds.append(next_ball)
+                used_balls.add(next_ball)
+
+                detail = f"频率补充: {next_ball:02d} (频率: {freq:.4f})"
+                prediction_details.append(detail)
+
+                if explain:
+                    print(f"  {detail}")
+            else:
+                remaining_balls = [i for i in range(1, 34) if i not in used_balls]
+                if remaining_balls:
+                    next_ball = random.choice(remaining_balls)
+                    predicted_reds.append(next_ball)
+                    used_balls.add(next_ball)
+
+                    if explain:
+                        print(f"  随机补充: {next_ball:02d}")
+
+        predicted_reds.sort()
+
+        # 预测蓝球
+        if explain:
+            print(f"\n蓝球预测过程:")
+
+        if latest_blue in blue_probs and blue_probs[latest_blue]:
+            candidates = list(blue_probs[latest_blue].keys())
+            probabilities = list(blue_probs[latest_blue].values())
+
+            if use_max_prob:
+                max_prob_index = probabilities.index(max(probabilities))
+                predicted_blue = candidates[max_prob_index]
+                prob = max(probabilities)
+
+                if explain:
+                    print(f"  蓝球转移: {latest_blue:02d} -> {predicted_blue:02d} (概率: {prob:.4f}, 候选数: {len(candidates)})")
+            else:
+                predicted_blue = np.random.choice(candidates, p=probabilities)
+                prob = blue_probs[latest_blue][predicted_blue]
+
+                if explain:
+                    print(f"  蓝球转移: {latest_blue:02d} -> {predicted_blue:02d} (概率: {prob:.4f}, 随机选择)")
+        else:
+            # 使用全局蓝球频率分布
+            blue_freq = {}
+            for i in range(1, 17):
+                blue_freq[i] = 0
+
+            for _, row in self.data.iterrows():
+                blue_freq[row['blue_ball']] += 1
+
+            total_blue_count = sum(blue_freq.values())
+            blue_freq = {ball: count / total_blue_count for ball, count in blue_freq.items()}
+
+            if use_max_prob:
+                predicted_blue = max(blue_freq.items(), key=lambda x: x[1])[0]
+            else:
+                balls = list(blue_freq.keys())
+                freqs = list(blue_freq.values())
+                predicted_blue = np.random.choice(balls, p=freqs)
+
+            if explain:
+                print(f"  蓝球频率: {predicted_blue:02d} (频率: {blue_freq[predicted_blue]:.4f})")
+
+        # 组合特征验证
+        if explain:
+            current_odd_count = sum(1 for x in latest_reds if x % 2 == 1)
+            predicted_odd_count = sum(1 for x in predicted_reds if x % 2 == 1)
+
+            current_big_count = sum(1 for x in latest_reds if x >= 17)
+            predicted_big_count = sum(1 for x in predicted_reds if x >= 17)
+
+            current_sum = sum(latest_reds)
+            predicted_sum = sum(predicted_reds)
+
+            print(f"\n组合特征对比:")
+            print(f"  奇偶比: {current_odd_count}:{6-current_odd_count} -> {predicted_odd_count}:{6-predicted_odd_count}")
+            print(f"  大小比: {current_big_count}:{6-current_big_count} -> {predicted_big_count}:{6-predicted_big_count}")
+            print(f"  和值: {current_sum} -> {predicted_sum}")
+            print(f"  跨度: {max(latest_reds) - min(latest_reds)} -> {max(predicted_reds) - min(predicted_reds)}")
+
+        return predicted_reds, predicted_blue
+
     def analyze_markov_prediction_accuracy(self, test_periods=50):
         """分析马尔可夫链预测的准确性"""
         print(f"分析马尔可夫链预测准确性（回测{test_periods}期）...")
@@ -2266,6 +2727,9 @@ def main():
     crawl_parser = subparsers.add_parser('crawl', help='爬取双色球历史数据')
     crawl_parser.add_argument('--count', type=int, default=300, help='爬取期数，默认300期')
     crawl_parser.add_argument('--all', action='store_true', help='爬取所有历史数据')
+    crawl_parser.add_argument('--start', type=str, help='起始期号（如：2025001）')
+    crawl_parser.add_argument('--end', type=str, help='结束期号（如：2025010）')
+    crawl_parser.add_argument('--append', action='store_true', help='追加到现有CSV文件')
 
     # 基础分析命令
     analyze_parser = subparsers.add_parser('analyze', help='运行基础分析')
@@ -2281,6 +2745,7 @@ def main():
     markov_parser.add_argument('--explain', action='store_true', help='显示预测过程')
     markov_parser.add_argument('--use-all-data', action='store_true', help='使用所有历史数据')
     markov_parser.add_argument('--analyze-accuracy', action='store_true', help='分析预测准确性')
+    markov_parser.add_argument('--periods', type=int, help='指定分析期数（如：100表示使用最近100期数据）')
 
     # 集成预测命令
     predict_parser = subparsers.add_parser('predict', help='使用各种方法预测')
@@ -2300,6 +2765,17 @@ def main():
     # 数据验证命令
     validate_parser = subparsers.add_parser('validate', help='验证数据文件')
 
+    # 获取最新开奖命令
+    fetch_parser = subparsers.add_parser('fetch_latest', help='获取最新一期开奖结果并追加到文件')
+    fetch_parser.add_argument('--file', type=str, default='ssq_data.csv', help='目标CSV文件名')
+
+    # 追加数据命令
+    append_parser = subparsers.add_parser('append', help='爬取指定数据并追加到文件')
+    append_parser.add_argument('--count', type=int, help='追加最新N期数据')
+    append_parser.add_argument('--start', type=str, help='起始期号')
+    append_parser.add_argument('--end', type=str, help='结束期号')
+    append_parser.add_argument('--file', type=str, default='ssq_data.csv', help='目标CSV文件名')
+
     args = parser.parse_args()
 
     # 创建分析器实例
@@ -2307,11 +2783,26 @@ def main():
 
     if args.command == 'crawl':
         # 爬取数据
-        success = analyzer.crawl_data(count=None if args.all else args.count, use_all_data=args.all)
-        if success:
-            print("数据爬取完成")
+        if args.start and args.end:
+            # 爬取指定期数范围
+            results = analyzer.crawl_specific_periods(start_issue=args.start, end_issue=args.end)
+            if results:
+                if args.append:
+                    filename = "ssq_data_all.csv" if args.all else "ssq_data.csv"
+                    analyzer.append_to_csv(results, filename)
+                else:
+                    filename = "ssq_data_all.csv" if args.all else "ssq_data.csv"
+                    analyzer.save_to_csv(results, filename)
+                print("指定期数数据爬取完成")
+            else:
+                print("指定期数数据爬取失败")
         else:
-            print("数据爬取失败")
+            # 原有的爬取逻辑
+            success = analyzer.crawl_data(count=None if args.all else args.count, use_all_data=args.all)
+            if success:
+                print("数据爬取完成")
+            else:
+                print("数据爬取失败")
 
     elif args.command == 'analyze':
         # 基础分析
@@ -2327,12 +2818,20 @@ def main():
             print("加载数据失败")
             return
 
-        predictions = analyzer.predict_multiple_by_markov_chain(count=args.count, explain=args.explain)
+        # 如果指定了期数，使用指定期数预测
+        if args.periods:
+            predictions = analyzer.predict_by_markov_chain_with_periods(
+                periods=args.periods,
+                count=args.count,
+                explain=args.explain
+            )
+        else:
+            predictions = analyzer.predict_multiple_by_markov_chain(count=args.count, explain=args.explain)
 
-        print(f"\n=== 马尔可夫链预测结果 ===")
-        for i, (red_balls, blue_ball) in enumerate(predictions):
-            formatted = analyzer.format_numbers(red_balls, blue_ball)
-            print(f"第{i+1}注: {formatted}")
+            print(f"\n=== 马尔可夫链预测结果 ===")
+            for i, (red_balls, blue_ball) in enumerate(predictions):
+                formatted = analyzer.format_numbers(red_balls, blue_ball)
+                print(f"第{i+1}注: {formatted}")
 
         # 准确性分析
         if args.analyze_accuracy:
@@ -2402,6 +2901,30 @@ def main():
     elif args.command == 'validate':
         # 验证数据
         analyzer.validate_data()
+
+    elif args.command == 'fetch_latest':
+        # 获取最新开奖并追加
+        result = analyzer.fetch_and_append_latest(filename=args.file)
+        if result:
+            print("最新开奖数据获取并追加成功")
+        else:
+            print("获取最新开奖数据失败")
+
+    elif args.command == 'append':
+        # 追加指定数据
+        if args.start and args.end:
+            results = analyzer.crawl_specific_periods(start_issue=args.start, end_issue=args.end)
+        elif args.count:
+            results = analyzer.crawl_specific_periods(count=args.count)
+        else:
+            print("请指定 --count 或 --start 和 --end 参数")
+            return
+
+        if results:
+            analyzer.append_to_csv(results, args.file)
+            print("数据追加完成")
+        else:
+            print("数据追加失败")
 
     else:
         # 显示帮助信息

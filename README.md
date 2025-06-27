@@ -159,6 +159,18 @@ python ssq_analyzer.py crawl --all
 
 # 爬取指定期数
 python ssq_analyzer.py crawl --count 100
+
+# 爬取指定期数范围并追加到文件
+python3 ssq_analyzer.py crawl --start 2025070 --end 2025072 --append
+
+# 获取最新一期开奖并追加到文件
+python3 ssq_analyzer.py fetch_latest
+
+# 追加最新N期数据到文件
+python3 ssq_analyzer.py append --count 5
+
+# 追加指定期数范围到文件
+python3 ssq_analyzer.py append --start 2025070 --end 2025072
 ```
 
 ### 分析命令
@@ -184,18 +196,24 @@ python3 ssq_analyzer.py advanced --method bayes
 ### 预测命令
 ```bash
 # 改进马尔可夫链预测（推荐）
-python ssq_analyzer.py markov_predict --count 5
+python3 ssq_analyzer.py markov_predict --count 5
 
 # 使用全量历史数据预测
-python ssq_analyzer.py markov_predict --use-all-data --count 3
+python3 ssq_analyzer.py markov_predict --use-all-data --count 3
 
 # 详细解释预测过程
-python ssq_analyzer.py markov_predict --explain --count 2
+python3 ssq_analyzer.py markov_predict --explain --count 2
+
+# 指定期数分析预测（新功能）
+python3 ssq_analyzer.py markov_predict --periods 100 --count 3 --explain
+
+# 指定期数分析预测（使用最近50期数据）
+python3 ssq_analyzer.py markov_predict --periods 50 --count 2 --explain
 
 # 各种预测方法
-python ssq_analyzer.py predict --method ensemble --count 3
-python ssq_analyzer.py predict --method markov --count 5
-python ssq_analyzer.py predict --method stats --count 3
+python3 ssq_analyzer.py predict --method ensemble --count 3
+python3 ssq_analyzer.py predict --method markov --count 5
+python3 ssq_analyzer.py predict --method stats --count 3
 python3 ssq_analyzer.py predict --method probability --count 3
 python3 ssq_analyzer.py predict --method decision_tree --count 3
 python3 ssq_analyzer.py predict --method patterns --count 3
@@ -208,6 +226,9 @@ python ssq_analyzer.py latest
 
 # 实时获取最新开奖结果
 python ssq_analyzer.py latest --real-time
+
+# 获取最新一期开奖并追加到文件（新功能）
+python3 ssq_analyzer.py fetch_latest
 
 # 生成号码
 python ssq_analyzer.py generate --method hybrid --count 5
@@ -223,6 +244,8 @@ python ssq_analyzer.py validate
 2. **多维度转移分析**：全局转移、位置转移、组合模式转移
 3. **智能预测策略**：多策略融合，自动去重
 4. **任意注数支持**：一次预测任意注数的号码
+5. **指定期数分析**：可指定使用最近N期数据进行分析预测
+6. **详细预测过程**：显示完整的预测推理过程
 
 ### 使用示例
 ```bash
@@ -237,6 +260,12 @@ python ssq_analyzer.py markov_predict --use-all-data --count 5
 
 # 详细解释
 python ssq_analyzer.py markov_predict --explain --count 3
+
+# 指定期数分析预测（新功能）
+python3 ssq_analyzer.py markov_predict --periods 100 --count 3 --explain
+
+# 指定期数分析预测（使用最近30期数据）
+python3 ssq_analyzer.py markov_predict --periods 30 --count 1 --explain
 ```
 
 ### 分析结果
@@ -309,12 +338,38 @@ MIT License
 
 ---
 
+## 🆕 新增功能
+
+### 数据管理功能
+1. **指定期数爬取**：支持爬取指定期数范围的数据
+2. **数据追加功能**：新数据自动按期号倒序追加到CSV文件
+3. **最新开奖获取**：一键获取最新一期开奖结果并追加到文件
+4. **智能数据更新**：避免重复数据，自动维护数据完整性
+
+### 马尔可夫链预测增强
+1. **指定期数分析**：可指定使用最近N期数据进行马尔可夫链分析
+2. **详细预测过程**：显示完整的预测推理过程和概率计算
+3. **多策略预测**：位置转移、全局转移、频率补充的组合策略
+4. **组合特征验证**：预测结果的奇偶比、大小比、和值分析
+
+### 使用示例
+```bash
+# 数据管理
+python3 ssq_analyzer.py fetch_latest                    # 获取最新开奖
+python3 ssq_analyzer.py append --count 10               # 追加最新10期
+python3 ssq_analyzer.py crawl --start 2025070 --end 2025072 --append  # 追加指定期数
+
+# 指定期数预测
+python3 ssq_analyzer.py markov_predict --periods 50 --count 3 --explain  # 使用最近50期预测
+python3 ssq_analyzer.py markov_predict --periods 100 --count 2 --explain # 使用最近100期预测
+```
+
 ## 🚀 项目优化成果
 
 ### 整合前后对比
 - **文件数量**：从 6 个 Python 文件整合为 1 个文件
 - **代码行数**：优化重复代码，提高代码复用率
-- **功能完整性**：保留所有原有功能，无功能缺失
+- **功能完整性**：保留所有原有功能，新增实用功能
 - **运行效率**：去除重复导入和初始化，提升运行速度
 
 ### 主要改进
@@ -334,6 +389,10 @@ MIT License
 ✅ 命令行界面正常（完整CLI支持）
 ✅ 可视化输出正常（图表和热力图）
 ✅ 准确性分析正常（回测验证）
+✅ 数据追加功能正常（增量更新）
+✅ 最新开奖获取正常（实时更新）
+✅ 指定期数分析正常（自定义数据范围）
+✅ 详细预测过程正常（完整推理展示）
 
 ---
 
