@@ -26,6 +26,7 @@ from matplotlib.font_manager import FontProperties
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.decomposition import PCA
 from scipy import stats
 
 # 可选依赖
@@ -3086,6 +3087,662 @@ class SSQAnalyzer:
             print(f"贝叶斯分析失败: {e}")
             return None
 
+    # ==================== 高级混合分析预测 ====================
+
+    def predict_by_advanced_hybrid_analysis(self, periods=None, count=1, explain=True):
+        """
+        基于多种数学模型的高级混合分析预测
+        整合统计学、概率论、马尔可夫链、贝叶斯分析、冷热号分布等方法
+
+        Args:
+            periods: 指定分析期数
+            count: 预测注数
+            explain: 是否显示详细分析过程
+
+        Returns:
+            预测结果列表
+        """
+        if self.data is None:
+            if not self.load_data():
+                return []
+
+        print(f"\n{'='*70}")
+        print(f"高级混合分析预测系统")
+        print(f"整合统计学、概率论、马尔可夫链、贝叶斯分析、冷热号分布等数学模型")
+        print(f"{'='*70}")
+
+        # 确定分析数据范围
+        if periods:
+            if len(self.data) < periods:
+                print(f"警告: 可用数据({len(self.data)}期)少于指定期数({periods}期)，将使用全部数据")
+                analysis_data = self.data.copy()
+                actual_periods = len(analysis_data)
+            else:
+                analysis_data = self.data.head(periods).copy()
+                actual_periods = periods
+                print(f"使用最近{periods}期数据进行高级混合分析")
+        else:
+            analysis_data = self.data.copy()
+            actual_periods = len(analysis_data)
+            print(f"使用全部{len(analysis_data)}期数据进行高级混合分析")
+
+        print(f"分析数据期数: {actual_periods}期")
+        print(f"数据范围: {analysis_data.iloc[-1]['issue']}期 - {analysis_data.iloc[0]['issue']}期")
+
+        # 获取最近一期作为预测基础
+        latest_data = analysis_data.iloc[0]
+        latest_reds = [latest_data[f'red_{i}'] for i in range(1, 7)]
+        latest_blue = latest_data['blue_ball']
+
+        print(f"\n预测基础数据:")
+        print(f"最近一期: {latest_data['issue']}期 ({latest_data['date']})")
+        print(f"开奖号码: 红球 {' '.join([f'{ball:02d}' for ball in latest_reds])} | 蓝球 {latest_blue:02d}")
+
+        # 执行综合分析
+        if explain:
+            print(f"\n开始执行多维度数学模型分析...")
+
+        hybrid_analysis = self._execute_hybrid_analysis(analysis_data, explain)
+
+        # 进行多注预测
+        predictions = []
+
+        for i in range(count):
+            print(f"\n{'='*50}")
+            print(f"第{i+1}注高级混合分析预测")
+            print(f"{'='*50}")
+
+            predicted_reds, predicted_blue = self._predict_with_hybrid_models(
+                hybrid_analysis, latest_reds, latest_blue, actual_periods, i+1, explain
+            )
+
+            predictions.append((predicted_reds, predicted_blue))
+
+            formatted = self.format_numbers(predicted_reds, predicted_blue)
+            print(f"\n第{i+1}注混合模型预测结果: {formatted}")
+
+        # 显示预测汇总
+        print(f"\n{'='*70}")
+        print(f"高级混合分析预测汇总")
+        print(f"{'='*70}")
+        print(f"分析期数: {actual_periods}期")
+        print(f"预测注数: {count}注")
+        print(f"预测基础: {latest_data['issue']}期")
+        print(f"分析模型: 统计学+概率论+马尔可夫链+贝叶斯+冷热号分布")
+
+        for i, (red_balls, blue_ball) in enumerate(predictions):
+            formatted = self.format_numbers(red_balls, blue_ball)
+            print(f"第{i+1}注: {formatted}")
+
+        return predictions
+
+    def _execute_hybrid_analysis(self, data, explain=True):
+        """执行多维度数学模型分析"""
+        analysis_results = {}
+
+        if explain:
+            print(f"\n【第一阶段：统计学分析】")
+
+        # 1. 统计学分析
+        stats_analysis = self._statistical_analysis(data, explain)
+        analysis_results['统计学分析'] = stats_analysis
+
+        if explain:
+            print(f"\n【第二阶段：概率论分析】")
+
+        # 2. 概率论分析
+        prob_analysis = self._probability_analysis(data, explain)
+        analysis_results['概率论分析'] = prob_analysis
+
+        if explain:
+            print(f"\n【第三阶段：马尔可夫链分析】")
+
+        # 3. 马尔可夫链分析
+        markov_analysis = self._analyze_markov_chain_stability(data)
+        analysis_results['马尔可夫链分析'] = markov_analysis
+
+        if explain:
+            print(f"\n【第四阶段：贝叶斯分析】")
+
+        # 4. 贝叶斯分析
+        bayes_analysis = self._bayesian_analysis(data, explain)
+        analysis_results['贝叶斯分析'] = bayes_analysis
+
+        if explain:
+            print(f"\n【第五阶段：冷热号分布分析】")
+
+        # 5. 冷热号分布分析
+        hot_cold_analysis = self._hot_cold_analysis(data, explain)
+        analysis_results['冷热号分析'] = hot_cold_analysis
+
+        if explain:
+            print(f"\n【第六阶段：周期性分析】")
+
+        # 6. 周期性分析
+        cycle_analysis = self._cycle_analysis(data, explain)
+        analysis_results['周期性分析'] = cycle_analysis
+
+        if explain:
+            print(f"\n【第七阶段：相关性分析】")
+
+        # 7. 相关性分析
+        correlation_analysis = self._correlation_analysis(data, explain)
+        analysis_results['相关性分析'] = correlation_analysis
+
+        return analysis_results
+
+    def _statistical_analysis(self, data, explain=True):
+        """统计学分析"""
+        results = {}
+
+        # 计算基本统计量
+        red_sums = []
+        red_variances = []
+        red_spans = []
+
+        for _, row in data.iterrows():
+            reds = [row[f'red_{i}'] for i in range(1, 7)]
+            red_sums.append(sum(reds))
+            red_variances.append(np.var(reds))
+            red_spans.append(max(reds) - min(reds))
+
+        # 统计特征
+        results['和值统计'] = {
+            '均值': np.mean(red_sums),
+            '标准差': np.std(red_sums),
+            '中位数': np.median(red_sums),
+            '偏度': stats.skew(red_sums),
+            '峰度': stats.kurtosis(red_sums)
+        }
+
+        results['方差统计'] = {
+            '均值': np.mean(red_variances),
+            '标准差': np.std(red_variances),
+            '中位数': np.median(red_variances)
+        }
+
+        results['跨度统计'] = {
+            '均值': np.mean(red_spans),
+            '标准差': np.std(red_spans),
+            '中位数': np.median(red_spans)
+        }
+
+        # 正态性检验
+        _, p_value = stats.normaltest(red_sums)
+        results['正态性检验'] = {
+            'p值': p_value,
+            '是否正态分布': p_value > 0.05
+        }
+
+        if explain:
+            print(f"  和值统计: 均值={results['和值统计']['均值']:.2f}, 标准差={results['和值统计']['标准差']:.2f}")
+            print(f"  偏度={results['和值统计']['偏度']:.3f}, 峰度={results['和值统计']['峰度']:.3f}")
+            print(f"  正态性检验: p值={results['正态性检验']['p值']:.4f}, {'符合' if results['正态性检验']['是否正态分布'] else '不符合'}正态分布")
+
+        return results
+
+    def _probability_analysis(self, data, explain=True):
+        """概率论分析"""
+        results = {}
+
+        # 计算各号码出现概率
+        red_counts = {}
+        blue_counts = {}
+
+        for i in range(1, 34):
+            red_counts[i] = 0
+        for i in range(1, 17):
+            blue_counts[i] = 0
+
+        for _, row in data.iterrows():
+            for i in range(1, 7):
+                red_counts[row[f'red_{i}']] += 1
+            blue_counts[row['blue_ball']] += 1
+
+        total_red_draws = len(data) * 6
+        total_blue_draws = len(data)
+
+        # 计算概率和期望频次
+        red_probs = {ball: count / total_red_draws for ball, count in red_counts.items()}
+        blue_probs = {ball: count / total_blue_draws for ball, count in blue_counts.items()}
+
+        # 卡方检验（检验是否符合均匀分布）
+        chi2_red, p_red = stats.chisquare(list(red_counts.values()))
+        chi2_blue, p_blue = stats.chisquare(list(blue_counts.values()))
+
+        results['红球概率分布'] = red_probs
+        results['蓝球概率分布'] = blue_probs
+        results['红球卡方检验'] = {'卡方值': chi2_red, 'p值': p_red, '均匀分布': p_red > 0.05}
+        results['蓝球卡方检验'] = {'卡方值': chi2_blue, 'p值': p_blue, '均匀分布': p_blue > 0.05}
+
+        # 计算信息熵
+        red_entropy = -sum(p * np.log2(p) for p in red_probs.values() if p > 0)
+        blue_entropy = -sum(p * np.log2(p) for p in blue_probs.values() if p > 0)
+
+        results['信息熵'] = {'红球': red_entropy, '蓝球': blue_entropy}
+
+        if explain:
+            print(f"  红球概率分布: 最高概率={max(red_probs.values()):.4f}, 最低概率={min(red_probs.values()):.4f}")
+            print(f"  红球卡方检验: p值={p_red:.4f}, {'符合' if p_red > 0.05 else '不符合'}均匀分布")
+            print(f"  信息熵: 红球={red_entropy:.3f}, 蓝球={blue_entropy:.3f}")
+
+        return results
+
+    def _bayesian_analysis(self, data, explain=True):
+        """贝叶斯分析"""
+        results = {}
+
+        # 贝叶斯更新概率
+        # 先验概率：假设均匀分布
+        red_prior = 1/33
+        blue_prior = 1/16
+
+        # 计算后验概率
+        red_counts = {}
+        blue_counts = {}
+
+        for i in range(1, 34):
+            red_counts[i] = 1  # 加1平滑
+        for i in range(1, 17):
+            blue_counts[i] = 1  # 加1平滑
+
+        for _, row in data.iterrows():
+            for i in range(1, 7):
+                red_counts[row[f'red_{i}']] += 1
+            blue_counts[row['blue_ball']] += 1
+
+        # 贝叶斯后验概率
+        total_red = sum(red_counts.values())
+        total_blue = sum(blue_counts.values())
+
+        red_posterior = {ball: count / total_red for ball, count in red_counts.items()}
+        blue_posterior = {ball: count / total_blue for ball, count in blue_counts.items()}
+
+        # 计算贝叶斯因子
+        red_bayes_factors = {}
+        blue_bayes_factors = {}
+
+        for ball in range(1, 34):
+            likelihood = red_counts[ball] / len(data)
+            red_bayes_factors[ball] = likelihood / red_prior
+
+        for ball in range(1, 17):
+            likelihood = blue_counts[ball] / len(data)
+            blue_bayes_factors[ball] = likelihood / blue_prior
+
+        results['红球后验概率'] = red_posterior
+        results['蓝球后验概率'] = blue_posterior
+        results['红球贝叶斯因子'] = red_bayes_factors
+        results['蓝球贝叶斯因子'] = blue_bayes_factors
+
+        if explain:
+            max_red_posterior = max(red_posterior.items(), key=lambda x: x[1])
+            max_blue_posterior = max(blue_posterior.items(), key=lambda x: x[1])
+            print(f"  红球最高后验概率: {max_red_posterior[0]}号({max_red_posterior[1]:.4f})")
+            print(f"  蓝球最高后验概率: {max_blue_posterior[0]}号({max_blue_posterior[1]:.4f})")
+
+            max_red_bf = max(red_bayes_factors.items(), key=lambda x: x[1])
+            max_blue_bf = max(blue_bayes_factors.items(), key=lambda x: x[1])
+            print(f"  红球最高贝叶斯因子: {max_red_bf[0]}号({max_red_bf[1]:.2f})")
+            print(f"  蓝球最高贝叶斯因子: {max_blue_bf[0]}号({max_blue_bf[1]:.2f})")
+
+        return results
+
+    def _hot_cold_analysis(self, data, explain=True):
+        """冷热号分布分析"""
+        results = {}
+
+        # 计算最近不同周期的出现频率
+        periods = [10, 20, 30, 50]
+
+        for period in periods:
+            if len(data) >= period:
+                recent_data = data.head(period)
+
+                red_counts = {}
+                blue_counts = {}
+
+                for i in range(1, 34):
+                    red_counts[i] = 0
+                for i in range(1, 17):
+                    blue_counts[i] = 0
+
+                for _, row in recent_data.iterrows():
+                    for i in range(1, 7):
+                        red_counts[row[f'red_{i}']] += 1
+                    blue_counts[row['blue_ball']] += 1
+
+                # 计算热度指数
+                avg_red_freq = sum(red_counts.values()) / 33
+                avg_blue_freq = sum(blue_counts.values()) / 16
+
+                red_heat_index = {ball: count / avg_red_freq if avg_red_freq > 0 else 0 for ball, count in red_counts.items()}
+                blue_heat_index = {ball: count / avg_blue_freq if avg_blue_freq > 0 else 0 for ball, count in blue_counts.items()}
+
+                # 分类冷热号
+                hot_red = [ball for ball, heat in red_heat_index.items() if heat > 1.5]
+                warm_red = [ball for ball, heat in red_heat_index.items() if 0.5 <= heat <= 1.5]
+                cold_red = [ball for ball, heat in red_heat_index.items() if heat < 0.5]
+
+                hot_blue = [ball for ball, heat in blue_heat_index.items() if heat > 1.5]
+                warm_blue = [ball for ball, heat in blue_heat_index.items() if 0.5 <= heat <= 1.5]
+                cold_blue = [ball for ball, heat in blue_heat_index.items() if heat < 0.5]
+
+                results[f'{period}期分析'] = {
+                    '红球热号': hot_red,
+                    '红球温号': warm_red,
+                    '红球冷号': cold_red,
+                    '蓝球热号': hot_blue,
+                    '蓝球温号': warm_blue,
+                    '蓝球冷号': cold_blue,
+                    '红球热度指数': red_heat_index,
+                    '蓝球热度指数': blue_heat_index
+                }
+
+        if explain:
+            for period in periods:
+                if f'{period}期分析' in results:
+                    analysis = results[f'{period}期分析']
+                    print(f"  {period}期分析: 红球热号{len(analysis['红球热号'])}个, 冷号{len(analysis['红球冷号'])}个")
+                    if analysis['红球热号']:
+                        print(f"    红球热号: {analysis['红球热号'][:5]}")
+                    if analysis['红球冷号']:
+                        print(f"    红球冷号: {analysis['红球冷号'][:5]}")
+
+        return results
+
+    def _cycle_analysis(self, data, explain=True):
+        """周期性分析"""
+        results = {}
+
+        # 分析和值的周期性
+        red_sums = []
+        for _, row in data.iterrows():
+            reds = [row[f'red_{i}'] for i in range(1, 7)]
+            red_sums.append(sum(reds))
+
+        # 自相关分析
+        max_lag = min(20, len(red_sums) // 3)
+        autocorr = []
+
+        for lag in range(1, max_lag + 1):
+            if len(red_sums) > lag:
+                corr = np.corrcoef(red_sums[:-lag], red_sums[lag:])[0, 1]
+                if not np.isnan(corr):
+                    autocorr.append((lag, corr))
+
+        # 寻找显著周期
+        significant_cycles = [(lag, corr) for lag, corr in autocorr if abs(corr) > 0.1]
+
+        # 傅里叶变换分析周期性
+        if len(red_sums) >= 32:
+            try:
+                fft_result = np.fft.fft(red_sums)
+                frequencies = np.fft.fftfreq(len(red_sums))
+                power_spectrum = np.abs(fft_result) ** 2
+
+                # 找到主要频率
+                main_freq_idx = np.argsort(power_spectrum)[-5:]  # 前5个主要频率
+                main_periods = [1/abs(frequencies[i]) if frequencies[i] != 0 else float('inf') for i in main_freq_idx]
+                main_periods = [p for p in main_periods if 2 <= p <= len(red_sums)//2]
+            except:
+                main_periods = []
+        else:
+            main_periods = []
+
+        results['自相关分析'] = autocorr
+        results['显著周期'] = significant_cycles
+        results['主要周期'] = main_periods
+
+        if explain:
+            print(f"  自相关分析: 发现{len(significant_cycles)}个显著周期")
+            if significant_cycles:
+                print(f"    最强周期: {significant_cycles[0][0]}期(相关系数{significant_cycles[0][1]:.3f})")
+            if main_periods:
+                print(f"    傅里叶分析主要周期: {main_periods[:3]}")
+
+        return results
+
+    def _correlation_analysis(self, data, explain=True):
+        """相关性分析"""
+        results = {}
+
+        # 构建特征矩阵
+        features = []
+        for _, row in data.iterrows():
+            reds = [row[f'red_{i}'] for i in range(1, 7)]
+            feature_vector = [
+                sum(reds),  # 和值
+                max(reds) - min(reds),  # 跨度
+                np.var(reds),  # 方差
+                sum(1 for x in reds if x % 2 == 1),  # 奇数个数
+                sum(1 for x in reds if x >= 17),  # 大数个数
+                row['blue_ball']  # 蓝球
+            ]
+            features.append(feature_vector)
+
+        features = np.array(features)
+        feature_names = ['和值', '跨度', '方差', '奇数个数', '大数个数', '蓝球']
+
+        # 计算相关系数矩阵
+        corr_matrix = np.corrcoef(features.T)
+
+        # 主成分分析
+        try:
+            pca = PCA(n_components=min(6, features.shape[1]))
+            pca_result = pca.fit_transform(features)
+            explained_variance = pca.explained_variance_ratio_
+        except:
+            explained_variance = []
+
+        # 寻找强相关特征对
+        strong_correlations = []
+        for i in range(len(feature_names)):
+            for j in range(i+1, len(feature_names)):
+                corr = corr_matrix[i, j]
+                if abs(corr) > 0.3:  # 相关系数阈值
+                    strong_correlations.append((feature_names[i], feature_names[j], corr))
+
+        results['相关系数矩阵'] = corr_matrix.tolist()
+        results['特征名称'] = feature_names
+        results['强相关特征'] = strong_correlations
+        results['主成分方差解释比'] = explained_variance.tolist() if len(explained_variance) > 0 else []
+
+        if explain:
+            print(f"  相关性分析: 发现{len(strong_correlations)}对强相关特征")
+            for feat1, feat2, corr in strong_correlations[:3]:  # 显示前3个
+                print(f"    {feat1} vs {feat2}: 相关系数={corr:.3f}")
+            if len(explained_variance) > 0:
+                print(f"    主成分分析: 前3个成分解释方差比={explained_variance[:3]}")
+
+        return results
+
+    def _predict_with_hybrid_models(self, hybrid_analysis, latest_reds, latest_blue, periods, prediction_num, explain):
+        """基于混合模型的预测方法"""
+
+        if explain:
+            print(f"基于{periods}期数据的混合模型预测分析:")
+
+        # 获取各模型分析结果
+        stats_analysis = hybrid_analysis['统计学分析']
+        prob_analysis = hybrid_analysis['概率论分析']
+        markov_analysis = hybrid_analysis['马尔可夫链分析']
+        bayes_analysis = hybrid_analysis['贝叶斯分析']
+        hot_cold_analysis = hybrid_analysis['冷热号分析']
+        cycle_analysis = hybrid_analysis['周期性分析']
+        corr_analysis = hybrid_analysis['相关性分析']
+
+        # 初始化候选号码评分系统
+        red_scores = {i: 0.0 for i in range(1, 34)}
+        blue_scores = {i: 0.0 for i in range(1, 17)}
+
+        if explain:
+            print(f"\n混合模型评分计算:")
+
+        # 1. 统计学模型评分 (权重: 15%)
+        target_sum = stats_analysis['和值统计']['均值']
+        target_variance = stats_analysis['方差统计']['均值']
+
+        for ball in range(1, 34):
+            # 基于统计特征的适应性评分
+            score = 1.0
+            # 如果号码有助于达到目标和值，给予加分
+            if abs(ball - target_sum/6) < 5:
+                score += 0.2
+            red_scores[ball] += score * 0.15
+
+        if explain:
+            print(f"  统计学模型: 目标和值={target_sum:.1f}, 目标方差={target_variance:.1f}")
+
+        # 2. 概率论模型评分 (权重: 20%)
+        red_probs = prob_analysis['红球概率分布']
+        blue_probs = prob_analysis['蓝球概率分布']
+
+        for ball, prob in red_probs.items():
+            red_scores[ball] += prob * 20 * 0.20  # 放大概率差异
+
+        for ball, prob in blue_probs.items():
+            blue_scores[ball] += prob * 16 * 0.20
+
+        if explain:
+            max_red_prob = max(red_probs.items(), key=lambda x: x[1])
+            print(f"  概率论模型: 红球最高概率={max_red_prob[0]}号({max_red_prob[1]:.4f})")
+
+        # 3. 马尔可夫链模型评分 (权重: 25%)
+        if '红球稳定性转移概率' in markov_analysis:
+            red_stability_probs = markov_analysis['红球稳定性转移概率']
+            blue_stability_probs = markov_analysis['蓝球稳定性转移概率']
+
+            # 基于当前状态的转移概率
+            for current_ball in latest_reds:
+                if current_ball in red_stability_probs:
+                    for next_ball, info in red_stability_probs[current_ball].items():
+                        if isinstance(info, dict) and '概率' in info:
+                            red_scores[next_ball] += info['概率'] * 0.25
+                        else:
+                            red_scores[next_ball] += info * 0.25
+
+            if latest_blue in blue_stability_probs:
+                for next_ball, info in blue_stability_probs[latest_blue].items():
+                    if isinstance(info, dict) and '概率' in info:
+                        blue_scores[next_ball] += info['概率'] * 0.25
+                    else:
+                        blue_scores[next_ball] += info * 0.25
+
+        if explain:
+            print(f"  马尔可夫链模型: 基于当前状态{latest_reds}的转移概率")
+
+        # 4. 贝叶斯模型评分 (权重: 15%)
+        red_posterior = bayes_analysis['红球后验概率']
+        blue_posterior = bayes_analysis['蓝球后验概率']
+        red_bayes_factors = bayes_analysis['红球贝叶斯因子']
+        blue_bayes_factors = bayes_analysis['蓝球贝叶斯因子']
+
+        for ball in range(1, 34):
+            # 结合后验概率和贝叶斯因子
+            posterior_score = red_posterior.get(ball, 0) * 10
+            bayes_factor_score = min(red_bayes_factors.get(ball, 1), 3) / 3  # 限制贝叶斯因子影响
+            red_scores[ball] += (posterior_score + bayes_factor_score) * 0.15
+
+        for ball in range(1, 17):
+            posterior_score = blue_posterior.get(ball, 0) * 10
+            bayes_factor_score = min(blue_bayes_factors.get(ball, 1), 3) / 3
+            blue_scores[ball] += (posterior_score + bayes_factor_score) * 0.15
+
+        if explain:
+            max_red_bf = max(red_bayes_factors.items(), key=lambda x: x[1])
+            print(f"  贝叶斯模型: 红球最高贝叶斯因子={max_red_bf[0]}号({max_red_bf[1]:.2f})")
+
+        # 5. 冷热号模型评分 (权重: 15%)
+        # 使用最近30期的分析结果
+        if '30期分析' in hot_cold_analysis:
+            hot_cold_30 = hot_cold_analysis['30期分析']
+            red_heat_index = hot_cold_30['红球热度指数']
+            blue_heat_index = hot_cold_30['蓝球热度指数']
+
+            for ball, heat in red_heat_index.items():
+                # 热号给予正分，冷号给予负分，但保持平衡
+                heat_score = (heat - 1.0) * 0.5  # 中心化处理
+                red_scores[ball] += heat_score * 0.15
+
+            for ball, heat in blue_heat_index.items():
+                heat_score = (heat - 1.0) * 0.5
+                blue_scores[ball] += heat_score * 0.15
+
+        if explain:
+            hot_red = hot_cold_analysis.get('30期分析', {}).get('红球热号', [])
+            print(f"  冷热号模型: 当前热号{len(hot_red)}个, 热号示例={hot_red[:3]}")
+
+        # 6. 周期性模型评分 (权重: 10%)
+        significant_cycles = cycle_analysis.get('显著周期', [])
+        if significant_cycles:
+            # 基于周期性调整评分
+            strongest_cycle = significant_cycles[0][0] if significant_cycles else 7
+
+            # 根据周期性模式调整评分
+            for ball in range(1, 34):
+                cycle_adjustment = 0.1 * np.sin(2 * np.pi * ball / strongest_cycle)
+                red_scores[ball] += cycle_adjustment * 0.10
+
+        if explain:
+            print(f"  周期性模型: 发现{len(significant_cycles)}个显著周期")
+
+        # 根据预测注数调整选择策略
+        choice_offset = (prediction_num - 1) * 0.1  # 后续注数选择次优选项
+
+        # 选择红球 - 基于综合评分
+        sorted_red_scores = sorted(red_scores.items(), key=lambda x: x[1], reverse=True)
+
+        predicted_reds = []
+        used_balls = set()
+
+        # 选择评分最高的6个红球，考虑预测注数偏移
+        for i, (ball, score) in enumerate(sorted_red_scores):
+            if len(predicted_reds) >= 6:
+                break
+
+            # 为不同注数引入随机性
+            if prediction_num > 1 and random.random() < choice_offset:
+                continue
+
+            if ball not in used_balls:
+                predicted_reds.append(ball)
+                used_balls.add(ball)
+
+        predicted_reds.sort()
+
+        # 选择蓝球 - 基于综合评分
+        sorted_blue_scores = sorted(blue_scores.items(), key=lambda x: x[1], reverse=True)
+
+        # 为不同注数选择不同排名的蓝球
+        blue_choice_index = min(prediction_num - 1, len(sorted_blue_scores) - 1)
+        predicted_blue = sorted_blue_scores[blue_choice_index][0]
+
+        if explain:
+            print(f"\n综合评分结果:")
+            print(f"  红球前10评分: {[(ball, f'{score:.3f}') for ball, score in sorted_red_scores[:10]]}")
+            print(f"  蓝球前5评分: {[(ball, f'{score:.3f}') for ball, score in sorted_blue_scores[:5]]}")
+            print(f"  选中红球: {predicted_reds}")
+            print(f"  选中蓝球: {predicted_blue}")
+
+            # 组合特征验证
+            current_odd_count = sum(1 for x in latest_reds if x % 2 == 1)
+            predicted_odd_count = sum(1 for x in predicted_reds if x % 2 == 1)
+
+            current_big_count = sum(1 for x in latest_reds if x >= 17)
+            predicted_big_count = sum(1 for x in predicted_reds if x >= 17)
+
+            current_sum = sum(latest_reds)
+            predicted_sum = sum(predicted_reds)
+
+            print(f"\n组合特征验证:")
+            print(f"  奇偶比: {current_odd_count}:{6-current_odd_count} -> {predicted_odd_count}:{6-predicted_odd_count}")
+            print(f"  大小比: {current_big_count}:{6-current_big_count} -> {predicted_big_count}:{6-predicted_big_count}")
+            print(f"  和值: {current_sum} -> {predicted_sum} (目标:{stats_analysis['和值统计']['均值']:.1f})")
+            print(f"  跨度: {max(latest_reds) - min(latest_reds)} -> {max(predicted_reds) - min(predicted_reds)}")
+
+        return predicted_reds, predicted_blue
+
 
 def main():
     """主函数 - 命令行界面"""
@@ -3118,9 +3775,10 @@ def main():
 
     # 集成预测命令
     predict_parser = subparsers.add_parser('predict', help='使用各种方法预测')
-    predict_parser.add_argument('--method', choices=['ensemble', 'markov', 'stats', 'probability', 'decision_tree', 'patterns'], default='ensemble', help='预测方法')
+    predict_parser.add_argument('--method', choices=['ensemble', 'markov', 'stats', 'probability', 'decision_tree', 'patterns', 'hybrid'], default='ensemble', help='预测方法')
     predict_parser.add_argument('--count', type=int, default=1, help='预测注数')
     predict_parser.add_argument('--explain', action='store_true', help='显示预测过程')
+    predict_parser.add_argument('--periods', type=int, help='指定分析期数（仅适用于hybrid方法）')
 
     # 生成号码命令
     generate_parser = subparsers.add_parser('generate', help='生成号码')
@@ -3144,6 +3802,12 @@ def main():
     append_parser.add_argument('--start', type=str, help='起始期号')
     append_parser.add_argument('--end', type=str, help='结束期号')
     append_parser.add_argument('--file', type=str, default='ssq_data.csv', help='目标CSV文件名')
+
+    # 高级混合分析命令
+    hybrid_parser = subparsers.add_parser('hybrid_predict', help='高级混合分析预测')
+    hybrid_parser.add_argument('--periods', type=int, help='指定分析期数')
+    hybrid_parser.add_argument('--count', type=int, default=1, help='预测注数')
+    hybrid_parser.add_argument('--explain', action='store_true', help='显示详细分析过程')
 
     args = parser.parse_args()
 
@@ -3245,6 +3909,12 @@ def main():
                 red_balls, blue_ball = analyzer.predict_based_on_patterns(explain=args.explain and i == 0)
                 formatted = analyzer.format_numbers(red_balls, blue_ball)
                 print(f"第{i+1}注: {formatted}")
+        elif args.method == 'hybrid':
+            predictions = analyzer.predict_by_advanced_hybrid_analysis(
+                periods=args.periods,
+                count=args.count,
+                explain=args.explain
+            )
 
     elif args.command == 'generate':
         # 生成号码
@@ -3295,9 +3965,677 @@ def main():
         else:
             print("数据追加失败")
 
+    elif args.command == 'hybrid_predict':
+        # 高级混合分析预测
+        if not analyzer.load_data():
+            print("加载数据失败")
+            return
+
+        predictions = analyzer.predict_by_advanced_hybrid_analysis(
+            periods=args.periods,
+            count=args.count,
+            explain=args.explain
+        )
+
     else:
         # 显示帮助信息
         parser.print_help()
+
+
+    # ==================== 高级混合分析预测 ====================
+
+    def predict_by_advanced_hybrid_analysis(self, periods=None, count=1, explain=True):
+        """
+        基于多种数学模型的高级混合分析预测
+        整合统计学、概率论、马尔可夫链、贝叶斯分析、冷热号分布等方法
+
+        Args:
+            periods: 指定分析期数
+            count: 预测注数
+            explain: 是否显示详细分析过程
+
+        Returns:
+            预测结果列表
+        """
+        if self.data is None:
+            if not self.load_data():
+                return []
+
+        print(f"\n{'='*70}")
+        print(f"高级混合分析预测系统")
+        print(f"整合统计学、概率论、马尔可夫链、贝叶斯分析、冷热号分布等数学模型")
+        print(f"{'='*70}")
+
+        # 确定分析数据范围
+        if periods:
+            if len(self.data) < periods:
+                print(f"警告: 可用数据({len(self.data)}期)少于指定期数({periods}期)，将使用全部数据")
+                analysis_data = self.data.copy()
+                actual_periods = len(analysis_data)
+            else:
+                analysis_data = self.data.head(periods).copy()
+                actual_periods = periods
+                print(f"使用最近{periods}期数据进行高级混合分析")
+        else:
+            analysis_data = self.data.copy()
+            actual_periods = len(analysis_data)
+            print(f"使用全部{len(analysis_data)}期数据进行高级混合分析")
+
+        print(f"分析数据期数: {actual_periods}期")
+        print(f"数据范围: {analysis_data.iloc[-1]['issue']}期 - {analysis_data.iloc[0]['issue']}期")
+
+        # 获取最近一期作为预测基础
+        latest_data = analysis_data.iloc[0]
+        latest_reds = [latest_data[f'red_{i}'] for i in range(1, 7)]
+        latest_blue = latest_data['blue_ball']
+
+        print(f"\n预测基础数据:")
+        print(f"最近一期: {latest_data['issue']}期 ({latest_data['date']})")
+        print(f"开奖号码: 红球 {' '.join([f'{ball:02d}' for ball in latest_reds])} | 蓝球 {latest_blue:02d}")
+
+        # 执行综合分析
+        if explain:
+            print(f"\n开始执行多维度数学模型分析...")
+
+        hybrid_analysis = self._execute_hybrid_analysis(analysis_data, explain)
+
+        # 进行多注预测
+        predictions = []
+
+        for i in range(count):
+            print(f"\n{'='*50}")
+            print(f"第{i+1}注高级混合分析预测")
+            print(f"{'='*50}")
+
+            predicted_reds, predicted_blue = self._predict_with_hybrid_models(
+                hybrid_analysis, latest_reds, latest_blue, actual_periods, i+1, explain
+            )
+
+            predictions.append((predicted_reds, predicted_blue))
+
+            formatted = self.format_numbers(predicted_reds, predicted_blue)
+            print(f"\n第{i+1}注混合模型预测结果: {formatted}")
+
+        # 显示预测汇总
+        print(f"\n{'='*70}")
+        print(f"高级混合分析预测汇总")
+        print(f"{'='*70}")
+        print(f"分析期数: {actual_periods}期")
+        print(f"预测注数: {count}注")
+        print(f"预测基础: {latest_data['issue']}期")
+        print(f"分析模型: 统计学+概率论+马尔可夫链+贝叶斯+冷热号分布")
+
+        for i, (red_balls, blue_ball) in enumerate(predictions):
+            formatted = self.format_numbers(red_balls, blue_ball)
+            print(f"第{i+1}注: {formatted}")
+
+        return predictions
+
+    def _execute_hybrid_analysis(self, data, explain=True):
+        """执行多维度数学模型分析"""
+        analysis_results = {}
+
+        if explain:
+            print(f"\n【第一阶段：统计学分析】")
+
+        # 1. 统计学分析
+        stats_analysis = self._statistical_analysis(data, explain)
+        analysis_results['统计学分析'] = stats_analysis
+
+        if explain:
+            print(f"\n【第二阶段：概率论分析】")
+
+        # 2. 概率论分析
+        prob_analysis = self._probability_analysis(data, explain)
+        analysis_results['概率论分析'] = prob_analysis
+
+        if explain:
+            print(f"\n【第三阶段：马尔可夫链分析】")
+
+        # 3. 马尔可夫链分析
+        markov_analysis = self._analyze_markov_chain_stability(data)
+        analysis_results['马尔可夫链分析'] = markov_analysis
+
+        if explain:
+            print(f"\n【第四阶段：贝叶斯分析】")
+
+        # 4. 贝叶斯分析
+        bayes_analysis = self._bayesian_analysis(data, explain)
+        analysis_results['贝叶斯分析'] = bayes_analysis
+
+        if explain:
+            print(f"\n【第五阶段：冷热号分布分析】")
+
+        # 5. 冷热号分布分析
+        hot_cold_analysis = self._hot_cold_analysis(data, explain)
+        analysis_results['冷热号分析'] = hot_cold_analysis
+
+        if explain:
+            print(f"\n【第六阶段：周期性分析】")
+
+        # 6. 周期性分析
+        cycle_analysis = self._cycle_analysis(data, explain)
+        analysis_results['周期性分析'] = cycle_analysis
+
+        if explain:
+            print(f"\n【第七阶段：相关性分析】")
+
+        # 7. 相关性分析
+        correlation_analysis = self._correlation_analysis(data, explain)
+        analysis_results['相关性分析'] = correlation_analysis
+
+        return analysis_results
+
+    def _statistical_analysis(self, data, explain=True):
+        """统计学分析"""
+        results = {}
+
+        # 计算基本统计量
+        red_sums = []
+        red_variances = []
+        red_spans = []
+
+        for _, row in data.iterrows():
+            reds = [row[f'red_{i}'] for i in range(1, 7)]
+            red_sums.append(sum(reds))
+            red_variances.append(np.var(reds))
+            red_spans.append(max(reds) - min(reds))
+
+        # 统计特征
+        results['和值统计'] = {
+            '均值': np.mean(red_sums),
+            '标准差': np.std(red_sums),
+            '中位数': np.median(red_sums),
+            '众数': stats.mode(red_sums)[0] if len(red_sums) > 0 else 0,
+            '偏度': stats.skew(red_sums),
+            '峰度': stats.kurtosis(red_sums)
+        }
+
+        results['方差统计'] = {
+            '均值': np.mean(red_variances),
+            '标准差': np.std(red_variances),
+            '中位数': np.median(red_variances)
+        }
+
+        results['跨度统计'] = {
+            '均值': np.mean(red_spans),
+            '标准差': np.std(red_spans),
+            '中位数': np.median(red_spans)
+        }
+
+        # 正态性检验
+        _, p_value = stats.normaltest(red_sums)
+        results['正态性检验'] = {
+            'p值': p_value,
+            '是否正态分布': p_value > 0.05
+        }
+
+        if explain:
+            print(f"  和值统计: 均值={results['和值统计']['均值']:.2f}, 标准差={results['和值统计']['标准差']:.2f}")
+            print(f"  偏度={results['和值统计']['偏度']:.3f}, 峰度={results['和值统计']['峰度']:.3f}")
+            print(f"  正态性检验: p值={results['正态性检验']['p值']:.4f}, {'符合' if results['正态性检验']['是否正态分布'] else '不符合'}正态分布")
+
+        return results
+
+    def _probability_analysis(self, data, explain=True):
+        """概率论分析"""
+        results = {}
+
+        # 计算各号码出现概率
+        red_counts = {}
+        blue_counts = {}
+
+        for i in range(1, 34):
+            red_counts[i] = 0
+        for i in range(1, 17):
+            blue_counts[i] = 0
+
+        for _, row in data.iterrows():
+            for i in range(1, 7):
+                red_counts[row[f'red_{i}']] += 1
+            blue_counts[row['blue_ball']] += 1
+
+        total_red_draws = len(data) * 6
+        total_blue_draws = len(data)
+
+        # 计算概率和期望频次
+        red_probs = {ball: count / total_red_draws for ball, count in red_counts.items()}
+        blue_probs = {ball: count / total_blue_draws for ball, count in blue_counts.items()}
+
+        # 卡方检验（检验是否符合均匀分布）
+        expected_red = total_red_draws / 33
+        expected_blue = total_blue_draws / 16
+
+        chi2_red, p_red = stats.chisquare(list(red_counts.values()))
+        chi2_blue, p_blue = stats.chisquare(list(blue_counts.values()))
+
+        results['红球概率分布'] = red_probs
+        results['蓝球概率分布'] = blue_probs
+        results['红球卡方检验'] = {'卡方值': chi2_red, 'p值': p_red, '均匀分布': p_red > 0.05}
+        results['蓝球卡方检验'] = {'卡方值': chi2_blue, 'p值': p_blue, '均匀分布': p_blue > 0.05}
+
+        # 计算信息熵
+        red_entropy = -sum(p * np.log2(p) for p in red_probs.values() if p > 0)
+        blue_entropy = -sum(p * np.log2(p) for p in blue_probs.values() if p > 0)
+
+        results['信息熵'] = {'红球': red_entropy, '蓝球': blue_entropy}
+
+        if explain:
+            print(f"  红球概率分布: 最高概率={max(red_probs.values()):.4f}, 最低概率={min(red_probs.values()):.4f}")
+            print(f"  红球卡方检验: p值={p_red:.4f}, {'符合' if p_red > 0.05 else '不符合'}均匀分布")
+            print(f"  信息熵: 红球={red_entropy:.3f}, 蓝球={blue_entropy:.3f}")
+
+        return results
+
+    def _bayesian_analysis(self, data, explain=True):
+        """贝叶斯分析"""
+        results = {}
+
+        # 贝叶斯更新概率
+        # 先验概率：假设均匀分布
+        red_prior = 1/33
+        blue_prior = 1/16
+
+        # 计算后验概率
+        red_counts = {}
+        blue_counts = {}
+
+        for i in range(1, 34):
+            red_counts[i] = 1  # 加1平滑
+        for i in range(1, 17):
+            blue_counts[i] = 1  # 加1平滑
+
+        for _, row in data.iterrows():
+            for i in range(1, 7):
+                red_counts[row[f'red_{i}']] += 1
+            blue_counts[row['blue_ball']] += 1
+
+        # 贝叶斯后验概率
+        total_red = sum(red_counts.values())
+        total_blue = sum(blue_counts.values())
+
+        red_posterior = {ball: count / total_red for ball, count in red_counts.items()}
+        blue_posterior = {ball: count / total_blue for ball, count in blue_counts.items()}
+
+        # 计算贝叶斯因子
+        red_bayes_factors = {}
+        blue_bayes_factors = {}
+
+        for ball in range(1, 34):
+            likelihood = red_counts[ball] / len(data)
+            red_bayes_factors[ball] = likelihood / red_prior
+
+        for ball in range(1, 17):
+            likelihood = blue_counts[ball] / len(data)
+            blue_bayes_factors[ball] = likelihood / blue_prior
+
+        results['红球后验概率'] = red_posterior
+        results['蓝球后验概率'] = blue_posterior
+        results['红球贝叶斯因子'] = red_bayes_factors
+        results['蓝球贝叶斯因子'] = blue_bayes_factors
+
+        if explain:
+            max_red_posterior = max(red_posterior.items(), key=lambda x: x[1])
+            max_blue_posterior = max(blue_posterior.items(), key=lambda x: x[1])
+            print(f"  红球最高后验概率: {max_red_posterior[0]}号({max_red_posterior[1]:.4f})")
+            print(f"  蓝球最高后验概率: {max_blue_posterior[0]}号({max_blue_posterior[1]:.4f})")
+
+            max_red_bf = max(red_bayes_factors.items(), key=lambda x: x[1])
+            max_blue_bf = max(blue_bayes_factors.items(), key=lambda x: x[1])
+            print(f"  红球最高贝叶斯因子: {max_red_bf[0]}号({max_red_bf[1]:.2f})")
+            print(f"  蓝球最高贝叶斯因子: {max_blue_bf[0]}号({max_blue_bf[1]:.2f})")
+
+        return results
+
+    def _hot_cold_analysis(self, data, explain=True):
+        """冷热号分布分析"""
+        results = {}
+
+        # 计算最近不同周期的出现频率
+        periods = [10, 20, 30, 50]
+
+        for period in periods:
+            if len(data) >= period:
+                recent_data = data.head(period)
+
+                red_counts = {}
+                blue_counts = {}
+
+                for i in range(1, 34):
+                    red_counts[i] = 0
+                for i in range(1, 17):
+                    blue_counts[i] = 0
+
+                for _, row in recent_data.iterrows():
+                    for i in range(1, 7):
+                        red_counts[row[f'red_{i}']] += 1
+                    blue_counts[row['blue_ball']] += 1
+
+                # 计算热度指数
+                avg_red_freq = sum(red_counts.values()) / 33
+                avg_blue_freq = sum(blue_counts.values()) / 16
+
+                red_heat_index = {ball: count / avg_red_freq for ball, count in red_counts.items()}
+                blue_heat_index = {ball: count / avg_blue_freq for ball, count in blue_counts.items()}
+
+                # 分类冷热号
+                hot_red = [ball for ball, heat in red_heat_index.items() if heat > 1.5]
+                warm_red = [ball for ball, heat in red_heat_index.items() if 0.5 <= heat <= 1.5]
+                cold_red = [ball for ball, heat in red_heat_index.items() if heat < 0.5]
+
+                hot_blue = [ball for ball, heat in blue_heat_index.items() if heat > 1.5]
+                warm_blue = [ball for ball, heat in blue_heat_index.items() if 0.5 <= heat <= 1.5]
+                cold_blue = [ball for ball, heat in blue_heat_index.items() if heat < 0.5]
+
+                results[f'{period}期分析'] = {
+                    '红球热号': hot_red,
+                    '红球温号': warm_red,
+                    '红球冷号': cold_red,
+                    '蓝球热号': hot_blue,
+                    '蓝球温号': warm_blue,
+                    '蓝球冷号': cold_blue,
+                    '红球热度指数': red_heat_index,
+                    '蓝球热度指数': blue_heat_index
+                }
+
+        if explain:
+            for period in periods:
+                if f'{period}期分析' in results:
+                    analysis = results[f'{period}期分析']
+                    print(f"  {period}期分析: 红球热号{len(analysis['红球热号'])}个, 冷号{len(analysis['红球冷号'])}个")
+                    print(f"    红球热号: {analysis['红球热号'][:5]}...")  # 显示前5个
+                    print(f"    红球冷号: {analysis['红球冷号'][:5]}...")
+
+        return results
+
+    def _cycle_analysis(self, data, explain=True):
+        """周期性分析"""
+        results = {}
+
+        # 分析和值的周期性
+        red_sums = []
+        for _, row in data.iterrows():
+            reds = [row[f'red_{i}'] for i in range(1, 7)]
+            red_sums.append(sum(reds))
+
+        # 自相关分析
+        max_lag = min(20, len(red_sums) // 3)
+        autocorr = []
+
+        for lag in range(1, max_lag + 1):
+            if len(red_sums) > lag:
+                corr = np.corrcoef(red_sums[:-lag], red_sums[lag:])[0, 1]
+                if not np.isnan(corr):
+                    autocorr.append((lag, corr))
+
+        # 寻找显著周期
+        significant_cycles = [(lag, corr) for lag, corr in autocorr if abs(corr) > 0.1]
+
+        # 傅里叶变换分析周期性
+        if len(red_sums) >= 32:
+            fft_result = np.fft.fft(red_sums)
+            frequencies = np.fft.fftfreq(len(red_sums))
+            power_spectrum = np.abs(fft_result) ** 2
+
+            # 找到主要频率
+            main_freq_idx = np.argsort(power_spectrum)[-5:]  # 前5个主要频率
+            main_periods = [1/abs(frequencies[i]) if frequencies[i] != 0 else float('inf') for i in main_freq_idx]
+            main_periods = [p for p in main_periods if 2 <= p <= len(red_sums)//2]
+        else:
+            main_periods = []
+
+        results['自相关分析'] = autocorr
+        results['显著周期'] = significant_cycles
+        results['主要周期'] = main_periods
+
+        if explain:
+            print(f"  自相关分析: 发现{len(significant_cycles)}个显著周期")
+            if significant_cycles:
+                print(f"    最强周期: {significant_cycles[0][0]}期(相关系数{significant_cycles[0][1]:.3f})")
+            if main_periods:
+                print(f"    傅里叶分析主要周期: {main_periods[:3]}")
+
+        return results
+
+    def _correlation_analysis(self, data, explain=True):
+        """相关性分析"""
+        results = {}
+
+        # 构建特征矩阵
+        features = []
+        for _, row in data.iterrows():
+            reds = [row[f'red_{i}'] for i in range(1, 7)]
+            feature_vector = [
+                sum(reds),  # 和值
+                max(reds) - min(reds),  # 跨度
+                np.var(reds),  # 方差
+                sum(1 for x in reds if x % 2 == 1),  # 奇数个数
+                sum(1 for x in reds if x >= 17),  # 大数个数
+                row['blue_ball']  # 蓝球
+            ]
+            features.append(feature_vector)
+
+        features = np.array(features)
+        feature_names = ['和值', '跨度', '方差', '奇数个数', '大数个数', '蓝球']
+
+        # 计算相关系数矩阵
+        corr_matrix = np.corrcoef(features.T)
+
+        # 主成分分析
+        try:
+            pca = PCA(n_components=min(6, features.shape[1]))
+            pca_result = pca.fit_transform(features)
+            explained_variance = pca.explained_variance_ratio_
+        except:
+            explained_variance = []
+
+        # 寻找强相关特征对
+        strong_correlations = []
+        for i in range(len(feature_names)):
+            for j in range(i+1, len(feature_names)):
+                corr = corr_matrix[i, j]
+                if abs(corr) > 0.3:  # 相关系数阈值
+                    strong_correlations.append((feature_names[i], feature_names[j], corr))
+
+        results['相关系数矩阵'] = corr_matrix.tolist()
+        results['特征名称'] = feature_names
+        results['强相关特征'] = strong_correlations
+        results['主成分方差解释比'] = explained_variance.tolist() if len(explained_variance) > 0 else []
+
+        if explain:
+            print(f"  相关性分析: 发现{len(strong_correlations)}对强相关特征")
+            for feat1, feat2, corr in strong_correlations[:3]:  # 显示前3个
+                print(f"    {feat1} vs {feat2}: 相关系数={corr:.3f}")
+            if len(explained_variance) > 0:
+                print(f"    主成分分析: 前3个成分解释方差比={explained_variance[:3]}")
+
+        return results
+
+    def _predict_with_hybrid_models(self, hybrid_analysis, latest_reds, latest_blue, periods, prediction_num, explain):
+        """基于混合模型的预测方法"""
+
+        if explain:
+            print(f"基于{periods}期数据的混合模型预测分析:")
+
+        # 获取各模型分析结果
+        stats_analysis = hybrid_analysis['统计学分析']
+        prob_analysis = hybrid_analysis['概率论分析']
+        markov_analysis = hybrid_analysis['马尔可夫链分析']
+        bayes_analysis = hybrid_analysis['贝叶斯分析']
+        hot_cold_analysis = hybrid_analysis['冷热号分析']
+        cycle_analysis = hybrid_analysis['周期性分析']
+        corr_analysis = hybrid_analysis['相关性分析']
+
+        # 初始化候选号码评分系统
+        red_scores = {i: 0.0 for i in range(1, 34)}
+        blue_scores = {i: 0.0 for i in range(1, 17)}
+
+        if explain:
+            print(f"\n混合模型评分计算:")
+
+        # 1. 统计学模型评分 (权重: 15%)
+        target_sum = stats_analysis['和值统计']['均值']
+        target_variance = stats_analysis['方差统计']['均值']
+
+        for ball in range(1, 34):
+            # 基于统计特征的适应性评分
+            score = 1.0
+            # 如果号码有助于达到目标和值，给予加分
+            if abs(ball - target_sum/6) < 5:
+                score += 0.2
+            red_scores[ball] += score * 0.15
+
+        if explain:
+            print(f"  统计学模型: 目标和值={target_sum:.1f}, 目标方差={target_variance:.1f}")
+
+        # 2. 概率论模型评分 (权重: 20%)
+        red_probs = prob_analysis['红球概率分布']
+        blue_probs = prob_analysis['蓝球概率分布']
+
+        for ball, prob in red_probs.items():
+            red_scores[ball] += prob * 20 * 0.20  # 放大概率差异
+
+        for ball, prob in blue_probs.items():
+            blue_scores[ball] += prob * 16 * 0.20
+
+        if explain:
+            max_red_prob = max(red_probs.items(), key=lambda x: x[1])
+            print(f"  概率论模型: 红球最高概率={max_red_prob[0]}号({max_red_prob[1]:.4f})")
+
+        # 3. 马尔可夫链模型评分 (权重: 25%)
+        if '红球稳定性转移概率' in markov_analysis:
+            red_stability_probs = markov_analysis['红球稳定性转移概率']
+            blue_stability_probs = markov_analysis['蓝球稳定性转移概率']
+
+            # 基于当前状态的转移概率
+            for current_ball in latest_reds:
+                if current_ball in red_stability_probs:
+                    for next_ball, info in red_stability_probs[current_ball].items():
+                        if isinstance(info, dict) and '概率' in info:
+                            red_scores[next_ball] += info['概率'] * 0.25
+                        else:
+                            red_scores[next_ball] += info * 0.25
+
+            if latest_blue in blue_stability_probs:
+                for next_ball, info in blue_stability_probs[latest_blue].items():
+                    if isinstance(info, dict) and '概率' in info:
+                        blue_scores[next_ball] += info['概率'] * 0.25
+                    else:
+                        blue_scores[next_ball] += info * 0.25
+
+        if explain:
+            print(f"  马尔可夫链模型: 基于当前状态{latest_reds}的转移概率")
+
+        # 4. 贝叶斯模型评分 (权重: 15%)
+        red_posterior = bayes_analysis['红球后验概率']
+        blue_posterior = bayes_analysis['蓝球后验概率']
+        red_bayes_factors = bayes_analysis['红球贝叶斯因子']
+        blue_bayes_factors = bayes_analysis['蓝球贝叶斯因子']
+
+        for ball in range(1, 34):
+            # 结合后验概率和贝叶斯因子
+            posterior_score = red_posterior.get(ball, 0) * 10
+            bayes_factor_score = min(red_bayes_factors.get(ball, 1), 3) / 3  # 限制贝叶斯因子影响
+            red_scores[ball] += (posterior_score + bayes_factor_score) * 0.15
+
+        for ball in range(1, 17):
+            posterior_score = blue_posterior.get(ball, 0) * 10
+            bayes_factor_score = min(blue_bayes_factors.get(ball, 1), 3) / 3
+            blue_scores[ball] += (posterior_score + bayes_factor_score) * 0.15
+
+        if explain:
+            max_red_bf = max(red_bayes_factors.items(), key=lambda x: x[1])
+            print(f"  贝叶斯模型: 红球最高贝叶斯因子={max_red_bf[0]}号({max_red_bf[1]:.2f})")
+
+        # 5. 冷热号模型评分 (权重: 15%)
+        # 使用最近30期的分析结果
+        if '30期分析' in hot_cold_analysis:
+            hot_cold_30 = hot_cold_analysis['30期分析']
+            red_heat_index = hot_cold_30['红球热度指数']
+            blue_heat_index = hot_cold_30['蓝球热度指数']
+
+            for ball, heat in red_heat_index.items():
+                # 热号给予正分，冷号给予负分，但保持平衡
+                heat_score = (heat - 1.0) * 0.5  # 中心化处理
+                red_scores[ball] += heat_score * 0.15
+
+            for ball, heat in blue_heat_index.items():
+                heat_score = (heat - 1.0) * 0.5
+                blue_scores[ball] += heat_score * 0.15
+
+        if explain:
+            hot_red = hot_cold_analysis.get('30期分析', {}).get('红球热号', [])
+            print(f"  冷热号模型: 当前热号{len(hot_red)}个, 热号示例={hot_red[:3]}")
+
+        # 6. 周期性模型评分 (权重: 10%)
+        significant_cycles = cycle_analysis.get('显著周期', [])
+        if significant_cycles:
+            # 基于周期性调整评分
+            strongest_cycle = significant_cycles[0][0] if significant_cycles else 7
+
+            # 根据周期性模式调整评分
+            for ball in range(1, 34):
+                cycle_adjustment = 0.1 * np.sin(2 * np.pi * ball / strongest_cycle)
+                red_scores[ball] += cycle_adjustment * 0.10
+
+        if explain:
+            print(f"  周期性模型: 发现{len(significant_cycles)}个显著周期")
+
+        # 根据预测注数调整选择策略
+        choice_offset = (prediction_num - 1) * 0.1  # 后续注数选择次优选项
+
+        # 选择红球 - 基于综合评分
+        sorted_red_scores = sorted(red_scores.items(), key=lambda x: x[1], reverse=True)
+
+        predicted_reds = []
+        used_balls = set()
+
+        # 选择评分最高的6个红球，考虑预测注数偏移
+        for i, (ball, score) in enumerate(sorted_red_scores):
+            if len(predicted_reds) >= 6:
+                break
+
+            # 为不同注数引入随机性
+            if prediction_num > 1 and random.random() < choice_offset:
+                continue
+
+            if ball not in used_balls:
+                predicted_reds.append(ball)
+                used_balls.add(ball)
+
+        predicted_reds.sort()
+
+        # 选择蓝球 - 基于综合评分
+        sorted_blue_scores = sorted(blue_scores.items(), key=lambda x: x[1], reverse=True)
+
+        # 为不同注数选择不同排名的蓝球
+        blue_choice_index = min(prediction_num - 1, len(sorted_blue_scores) - 1)
+        predicted_blue = sorted_blue_scores[blue_choice_index][0]
+
+        if explain:
+            print(f"\n综合评分结果:")
+            print(f"  红球前10评分: {[(ball, f'{score:.3f}') for ball, score in sorted_red_scores[:10]]}")
+            print(f"  蓝球前5评分: {[(ball, f'{score:.3f}') for ball, score in sorted_blue_scores[:5]]}")
+            print(f"  选中红球: {predicted_reds}")
+            print(f"  选中蓝球: {predicted_blue}")
+
+            # 组合特征验证
+            current_odd_count = sum(1 for x in latest_reds if x % 2 == 1)
+            predicted_odd_count = sum(1 for x in predicted_reds if x % 2 == 1)
+
+            current_big_count = sum(1 for x in latest_reds if x >= 17)
+            predicted_big_count = sum(1 for x in predicted_reds if x >= 17)
+
+            current_sum = sum(latest_reds)
+            predicted_sum = sum(predicted_reds)
+
+            print(f"\n组合特征验证:")
+            print(f"  奇偶比: {current_odd_count}:{6-current_odd_count} -> {predicted_odd_count}:{6-predicted_odd_count}")
+            print(f"  大小比: {current_big_count}:{6-current_big_count} -> {predicted_big_count}:{6-predicted_big_count}")
+            print(f"  和值: {current_sum} -> {predicted_sum} (目标:{stats_analysis['和值统计']['均值']:.1f})")
+            print(f"  跨度: {max(latest_reds) - min(latest_reds)} -> {max(predicted_reds) - min(predicted_reds)}")
+
+        return predicted_reds, predicted_blue
 
 
 if __name__ == "__main__":
