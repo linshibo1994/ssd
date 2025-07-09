@@ -19,6 +19,12 @@
   - 历史关联性分析
   - 期号关联性分析
 - **智能预测**：基于多种算法的号码预测功能
+- **🆕 新增预测方法**：整合全网最先进的5种预测算法
+  - LSTM深度学习预测器 🧠
+  - 集成学习预测器 🤖
+  - 蒙特卡洛模拟预测器 🎲
+  - K-Means聚类分析预测器 🔍
+  - 超级预测器 🌟（智能融合所有方法）
 - **号码生成**：提供随机、频率、走势和混合策略的号码生成方法
 - **可视化**：丰富的数据可视化图表，直观展示分析结果
 
@@ -105,7 +111,35 @@ python src/main.py predict --explain
 python src/main.py predict --compare
 ```
 
-#### 5. 号码生成
+#### 5. 🆕 新增预测方法
+
+```bash
+# 超级预测器（推荐）- 集成所有方法
+python src/main.py super -m ensemble -n 5
+
+# 快速预测
+python src/main.py super -m quick -n 3
+
+# 全方法对比分析
+python src/main.py super -m compare -n 1
+
+# LSTM深度学习预测
+python src/main.py lstm -n 3
+
+# 集成学习预测
+python src/main.py ensemble -n 3
+
+# 蒙特卡洛模拟预测
+python src/main.py monte_carlo -n 3 -s 20000
+
+# 聚类分析预测
+python src/main.py clustering -n 3
+
+# 训练所有模型
+python src/main.py super --train -p 500
+```
+
+#### 6. 号码生成
 
 ```bash
 # 使用混合策略生成号码
@@ -126,31 +160,89 @@ python src/main.py latest
 ## 项目结构
 
 ```
-.
-├── README.md           # 项目说明文档
-├── requirements.txt    # 项目依赖
-├── data/               # 数据存储目录
-│   ├── ssq_data.csv    # 双色球数据文件（最近300期）
-│   ├── ssq_data_all.csv # 双色球所有历史数据
-│   ├── number_frequency.png # 号码频率图
-│   ├── number_combinations.png # 号码组合特征图
-│   ├── red_ball_trend.png # 红球走势图
-│   ├── blue_ball_trend.png # 蓝球走势图
-│   └── advanced/      # 高级分析结果目录
-└── src/                # 源代码目录
-    ├── main.py         # 主程序
-    ├── cwl_crawler.py  # 爬虫模块
-    ├── analyzer.py     # 基础分析模块
-    ├── advanced_analyzer.py # 高级分析模块
-    └── utils.py        # 工具函数
+ssd/
+├── README.md                      # 项目说明文档
+├── requirements.txt               # 项目依赖
+├── test_predictors.py            # 🆕 预测器测试脚本
+├── 使用文档.md                    # 详细使用文档
+├── 大乐透预测开源项目分析报告.md    # 🆕 技术分析报告
+├── 新增预测方法使用文档.md         # 🆕 新功能使用文档
+├── data/                         # 数据存储目录
+│   ├── ssq_data.csv             # 双色球数据文件
+│   ├── models/                  # 🆕 训练模型存储
+│   ├── advanced/                # 高级分析结果目录
+│   ├── monte_carlo/             # 🆕 蒙特卡洛分析结果
+│   ├── clustering/              # 🆕 聚类分析结果
+│   └── super/                   # 🆕 超级预测器结果
+└── src/                         # 源代码目录
+    ├── main.py                  # 主程序
+    ├── cwl_crawler.py           # 爬虫模块
+    ├── analyzer.py              # 基础分析模块
+    ├── advanced_analyzer.py     # 高级分析模块
+    ├── lstm_predictor.py        # 🆕 LSTM深度学习预测器
+    ├── ensemble_predictor.py    # 🆕 集成学习预测器
+    ├── monte_carlo_predictor.py # 🆕 蒙特卡洛模拟预测器
+    ├── clustering_predictor.py  # 🆕 聚类分析预测器
+    ├── super_predictor.py       # 🆕 超级预测器
+    └── utils.py                 # 工具函数
 ```
+
+## 🧪 测试预测器
+
+运行测试脚本验证所有预测器是否正常工作：
+
+```bash
+python test_predictors.py
+```
+
+## 🎯 推荐使用方式
+
+### 日常预测（最推荐）
+```bash
+python src/main.py super -m ensemble -n 5
+```
+
+### 快速预测
+```bash
+python src/main.py super -m quick -n 3
+```
+
+### 深度分析
+```bash
+python src/main.py super -m compare -n 1
+```
+
+## 📖 详细文档
+
+- [使用文档.md](使用文档.md) - 完整的使用说明和功能介绍
+- [新增预测方法使用文档.md](新增预测方法使用文档.md) - 新增预测方法详细说明
+- [大乐透预测开源项目分析报告.md](大乐透预测开源项目分析报告.md) - 技术分析和算法原理
+
+## 📈 算法权重配置
+
+在超级预测器中，各算法的默认权重为：
+
+| 算法 | 权重 | 说明 |
+|------|------|------|
+| 混合分析 | 30% | 原有的7种数学模型综合 |
+| LSTM深度学习 | 25% | 时间序列深度学习 |
+| 集成学习 | 20% | XGBoost等多模型融合 |
+| 蒙特卡洛模拟 | 15% | 概率分布随机采样 |
+| 聚类分析 | 10% | 模式识别和聚类 |
 
 ## 注意事项
 
+- 🆕 新增预测方法需要安装额外依赖（TensorFlow、XGBoost、LightGBM等）
 - 贝叶斯分析功能需要安装PyMC和arviz包
 - 爬取数据时可能会受到网站访问限制，建议适当控制爬取频率
 - 高级分析功能计算量较大，可能需要较长时间
+- 首次使用建议先运行测试脚本验证环境配置
+- 分析结果仅供参考，彩票具有随机性，请理性购彩
+
+## 免责声明
+
+本项目仅用于技术研究和学习目的，不构成任何投资建议。彩票具有随机性，任何预测结果都不保证准确性。请理性购彩，适度娱乐。
 
 ## 许可证
 
-MIT
+MIT License

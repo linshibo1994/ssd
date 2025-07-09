@@ -203,12 +203,50 @@ def main():
     
     # 智能预测命令
     predict_parser = subparsers.add_parser('predict', help='使用高级分析模型预测双色球号码')
-    predict_parser.add_argument('--method', choices=['stats', 'probability', 'decision_tree', 'bayes', 'ensemble', 'pattern'], 
+    predict_parser.add_argument('--method', choices=['stats', 'probability', 'decision_tree', 'bayes', 'ensemble', 'pattern'],
                               default='ensemble', help='预测方法')
     predict_parser.add_argument('--count', type=int, default=1, help='生成注数，默认为1注')
     predict_parser.add_argument('--explain', action='store_true', help='是否解释预测结果')
     predict_parser.add_argument('--compare', action='store_true', help='是否与历史数据进行对比分析')
     predict_parser.add_argument('--compare_periods', type=int, default=300, help='与历史数据对比的期数，默认为300期')
+
+    # LSTM深度学习预测命令
+    lstm_parser = subparsers.add_parser('lstm', help='LSTM深度学习预测')
+    lstm_parser.add_argument('--train', action='store_true', help='训练LSTM模型')
+    lstm_parser.add_argument('--retrain', action='store_true', help='重新训练LSTM模型')
+    lstm_parser.add_argument('-p', '--periods', type=int, default=500, help='训练期数，默认500期')
+    lstm_parser.add_argument('--red_epochs', type=int, default=50, help='红球训练轮数，默认50')
+    lstm_parser.add_argument('--blue_epochs', type=int, default=50, help='蓝球训练轮数，默认50')
+    lstm_parser.add_argument('-n', '--num', type=int, default=1, help='预测注数，默认1注')
+
+    # 集成学习预测命令
+    ensemble_parser = subparsers.add_parser('ensemble', help='集成学习预测')
+    ensemble_parser.add_argument('--train', action='store_true', help='训练集成学习模型')
+    ensemble_parser.add_argument('-p', '--periods', type=int, default=500, help='训练期数，默认500期')
+    ensemble_parser.add_argument('-n', '--num', type=int, default=1, help='预测注数，默认1注')
+
+    # 蒙特卡洛模拟预测命令
+    monte_carlo_parser = subparsers.add_parser('monte_carlo', help='蒙特卡洛模拟预测')
+    monte_carlo_parser.add_argument('-n', '--num', type=int, default=1, help='预测注数，默认1注')
+    monte_carlo_parser.add_argument('-s', '--simulations', type=int, default=10000, help='模拟次数，默认10000次')
+    monte_carlo_parser.add_argument('--analyze', action='store_true', help='进行模式分析')
+    monte_carlo_parser.add_argument('--save', action='store_true', help='保存分析结果')
+
+    # 聚类分析预测命令
+    clustering_parser = subparsers.add_parser('clustering', help='聚类分析预测')
+    clustering_parser.add_argument('-n', '--num', type=int, default=1, help='预测注数，默认1注')
+    clustering_parser.add_argument('-k', '--clusters', type=int, help='聚类数，默认自动确定')
+    clustering_parser.add_argument('--visualize', action='store_true', help='生成聚类可视化图')
+    clustering_parser.add_argument('--save', action='store_true', help='保存分析结果')
+
+    # 超级预测器命令
+    super_parser = subparsers.add_parser('super', help='超级预测器（集成所有方法）')
+    super_parser.add_argument('-m', '--mode', choices=['ensemble', 'quick', 'all', 'compare'],
+                             default='ensemble', help='预测模式，默认为ensemble')
+    super_parser.add_argument('-n', '--num', type=int, default=1, help='预测注数，默认1注')
+    super_parser.add_argument('--train', action='store_true', help='训练所有模型')
+    super_parser.add_argument('-p', '--periods', type=int, default=500, help='训练期数，默认500期')
+    super_parser.add_argument('--save', action='store_true', help='保存预测结果')
     
     # 生成命令
     generate_parser = subparsers.add_parser('generate', help='生成双色球号码')
@@ -343,6 +381,202 @@ def main():
                 print(f"恭喜！中得{prize_level}等奖！")
             else:
                 print("很遗憾，未中奖")
+    elif args.command == "lstm":
+        # LSTM深度学习预测
+        try:
+            from lstm_predictor import SSQLSTMPredictor
+
+            data_file = get_data_file()
+            model_dir = os.path.join(get_project_root(), "data", "models")
+
+            predictor = SSQLSTMPredictor(data_file=data_file, model_dir=model_dir)
+
+            if args.train or args.retrain:
+                success = predictor.train_models(
+                    periods=args.periods,
+                    red_epochs=args.red_epochs,
+                    blue_epochs=args.blue_epochs
+                )
+                if success:
+                    print("LSTM模型训练成功！")
+                else:
+                    print("LSTM模型训练失败！")
+            else:
+                print("🧠 LSTM深度学习预测")
+                print("=" * 40)
+
+                predictions = predictor.predict(num_predictions=args.num)
+                if predictions:
+                    for i, (red_balls, blue_ball) in enumerate(predictions, 1):
+                        formatted = format_ssq_numbers(red_balls, blue_ball)
+                        print(f"第 {i} 注: {formatted}")
+                else:
+                    print("预测失败，请先训练模型")
+        except ImportError:
+            print("LSTM预测器不可用，请安装TensorFlow: pip install tensorflow")
+
+    elif args.command == "ensemble":
+        # 集成学习预测
+        try:
+            from ensemble_predictor import SSQEnsemblePredictor
+
+            data_file = get_data_file()
+            model_dir = os.path.join(get_project_root(), "data", "models")
+
+            predictor = SSQEnsemblePredictor(data_file=data_file, model_dir=model_dir)
+
+            if args.train:
+                success = predictor.train_models(periods=args.periods)
+                if success:
+                    print("集成学习模型训练成功！")
+                else:
+                    print("集成学习模型训练失败！")
+            else:
+                print("🤖 集成学习预测")
+                print("=" * 40)
+
+                predictions = predictor.predict(num_predictions=args.num)
+                if predictions:
+                    for i, (red_balls, blue_ball) in enumerate(predictions, 1):
+                        formatted = format_ssq_numbers(red_balls, blue_ball)
+                        print(f"第 {i} 注: {formatted}")
+                else:
+                    print("预测失败，请先训练模型")
+        except ImportError:
+            print("集成学习预测器不可用，请安装依赖: pip install xgboost lightgbm")
+
+    elif args.command == "monte_carlo":
+        # 蒙特卡洛模拟预测
+        try:
+            from monte_carlo_predictor import SSQMonteCarloPredictor
+
+            data_file = get_data_file()
+            output_dir = os.path.join(get_project_root(), "data", "monte_carlo")
+
+            predictor = SSQMonteCarloPredictor(data_file=data_file, output_dir=output_dir)
+
+            print("🎲 蒙特卡洛模拟预测")
+            print("=" * 40)
+            print(f"模拟次数: {args.simulations:,}")
+
+            predictions = predictor.predict(
+                num_predictions=args.num,
+                num_simulations=args.simulations
+            )
+
+            if predictions:
+                for i, (red_balls, blue_ball, confidence) in enumerate(predictions, 1):
+                    formatted = format_ssq_numbers(red_balls, blue_ball)
+                    print(f"第 {i} 注: {formatted} (置信度: {confidence:.1%})")
+
+                if args.analyze:
+                    pattern_analysis = predictor.analyze_patterns()
+                    print("\n📊 模式分析结果:")
+                    print(f"红球热号: {', '.join([f'{ball:02d}' for ball in pattern_analysis['red_hot_numbers'][:5]])}")
+                    print(f"蓝球热号: {', '.join([f'{ball:02d}' for ball in pattern_analysis['blue_hot_numbers'][:3]])}")
+
+                if args.save:
+                    if not args.analyze:
+                        pattern_analysis = predictor.analyze_patterns()
+                    predictor.save_analysis_results(predictions, pattern_analysis)
+            else:
+                print("预测失败")
+        except ImportError:
+            print("蒙特卡洛预测器不可用，请安装SciPy: pip install scipy")
+
+    elif args.command == "clustering":
+        # 聚类分析预测
+        try:
+            from clustering_predictor import SSQClusteringPredictor
+
+            data_file = get_data_file()
+            output_dir = os.path.join(get_project_root(), "data", "clustering")
+
+            predictor = SSQClusteringPredictor(data_file=data_file, output_dir=output_dir)
+
+            print("🔍 K-Means聚类分析预测")
+            print("=" * 40)
+
+            predictions = predictor.predict(num_predictions=args.num, k=args.clusters)
+
+            if predictions:
+                for i, (red_balls, blue_ball) in enumerate(predictions, 1):
+                    formatted = format_ssq_numbers(red_balls, blue_ball)
+                    print(f"第 {i} 注: {formatted}")
+
+                if args.visualize or args.save:
+                    features_df = predictor.extract_clustering_features()
+                    clustering_results = predictor.perform_clustering(features_df, k=args.clusters)
+                    cluster_patterns = predictor.analyze_cluster_patterns(clustering_results)
+
+                    if args.visualize:
+                        predictor.visualize_clusters(clustering_results)
+
+                    if args.save:
+                        predictor.save_clustering_results(clustering_results, cluster_patterns, predictions)
+            else:
+                print("预测失败")
+        except ImportError:
+            print("聚类分析预测器不可用，请安装依赖: pip install scikit-learn matplotlib")
+
+    elif args.command == "super":
+        # 超级预测器
+        try:
+            from super_predictor import SSQSuperPredictor
+
+            data_file = get_data_file()
+            model_dir = os.path.join(get_project_root(), "data", "models")
+            output_dir = os.path.join(get_project_root(), "data", "super")
+
+            predictor = SSQSuperPredictor(
+                data_file=data_file,
+                model_dir=model_dir,
+                output_dir=output_dir
+            )
+
+            if args.train:
+                predictor.train_all_models(periods=args.periods)
+            else:
+                print("🌟 超级预测器")
+                print("=" * 80)
+
+                if args.mode == 'ensemble':
+                    print(f"🏆 集成预测模式 - {args.num}注")
+                elif args.mode == 'quick':
+                    print(f"⚡ 快速预测模式 - {args.num}注")
+                elif args.mode == 'all':
+                    print(f"🌟 全方法预测模式 - {args.num}注")
+                elif args.mode == 'compare':
+                    print(f"📊 方法对比模式 - {args.num}注")
+
+                print("=" * 80)
+
+                results = predictor.predict(mode=args.mode, num_predictions=args.num)
+
+                if results:
+                    if args.mode == 'ensemble':
+                        from super_predictor import print_ensemble_results
+                        print_ensemble_results(results, predictor)
+                    elif args.mode == 'quick':
+                        # 使用utils中的format_ssq_numbers
+                        print("⚡ 快速预测结果:")
+                        for i, (red_balls, blue_ball) in enumerate(results, 1):
+                            formatted = format_ssq_numbers(red_balls, blue_ball)
+                            print(f"第 {i} 注: {formatted}")
+                    elif args.mode == 'all':
+                        from super_predictor import print_all_results
+                        print_all_results(results)
+                    elif args.mode == 'compare':
+                        from super_predictor import print_compare_results
+                        print_compare_results(results)
+
+                    if args.save:
+                        predictor.save_prediction_results(results, args.mode)
+                else:
+                    print("预测失败")
+        except ImportError as e:
+            print(f"超级预测器不可用: {e}")
+
     elif args.command == "generate":
         generate_numbers(args)
     elif args.command == "latest":

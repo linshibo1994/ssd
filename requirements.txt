@@ -15,6 +15,18 @@ seaborn
 # 机器学习相关依赖
 scikit-learn
 
+# 深度学习相关依赖
+tensorflow>=2.10.0
+keras
+
+# 集成学习相关依赖
+xgboost
+lightgbm
+
 # 贝叶斯分析相关依赖（可选）
 pymc
 arviz
+
+# 其他工具依赖
+tqdm
+joblib
