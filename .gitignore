@@ -36,3 +36,6 @@ data/super/
 # 忽略数据文件备份
 data/*.bak
 data/*.backup
+
+# 忽略.history文件夹
+.history/
