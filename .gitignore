@@ -39,3 +39,6 @@ data/*.backup
 
 # 忽略.history文件夹
 .history/
+
+# 忽略.kiro文件夹
+.kiro

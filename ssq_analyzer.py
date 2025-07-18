@@ -309,7 +309,8 @@ class SSQAnalyzer:
             filename = "ssq_data_all.csv"
             print("开始爬取所有历史双色球数据...")
         else:
-            filename = "ssq_data.csv"
+            # 统一使用ssq_data_all.csv文件
+            filename = "ssq_data_all.csv"
             print(f"开始爬取最近{count}期双色球数据...")
 
         # 从官方网站获取数据
@@ -535,7 +536,7 @@ class SSQAnalyzer:
             print(f"爬取数据失败: {e}")
             return []
 
-    def fetch_and_append_latest(self, filename="ssq_data.csv"):
+    def fetch_and_append_latest(self, filename="ssq_data_all.csv"):
         """获取最新一期开奖结果并追加到CSV文件"""
         print("获取最新一期开奖结果...")
 
@@ -596,13 +597,10 @@ class SSQAnalyzer:
                 data_file = os.path.join(self.data_dir, "ssq_data_all.csv")
                 if not os.path.exists(data_file):
                     print("警告: 完整历史数据文件(ssq_data_all.csv)不存在，请先运行: python3 ssq_analyzer.py crawl --all")
-                    print("正在尝试使用部分数据文件...")
-                    data_file = os.path.join(self.data_dir, "ssq_data.csv")
+                    return False
             else:
-                # 优先使用全量数据，但允许降级
+                # 统一使用完整历史数据文件
                 data_file = os.path.join(self.data_dir, "ssq_data_all.csv")
-                if not os.path.exists(data_file):
-                    data_file = os.path.join(self.data_dir, "ssq_data.csv")
 
         try:
             if not os.path.exists(data_file):
@@ -620,6 +618,8 @@ class SSQAnalyzer:
 
             # 处理日期列
             if 'date' in self.data.columns:
+                # 先去除日期中的星期信息，只保留日期部分
+                self.data['date'] = self.data['date'].str.extract(r'(\d{4}-\d{2}-\d{2})')[0]
                 self.data['date'] = pd.to_datetime(self.data['date'], format='%Y-%m-%d', errors='coerce')
 
             # 拆分红球列为单独的列
@@ -656,7 +656,7 @@ class SSQAnalyzer:
     def validate_data(self, data_file=None):
         """验证数据文件的完整性"""
         if data_file is None:
-            data_file = os.path.join(self.data_dir, "ssq_data.csv")
+            data_file = os.path.join(self.data_dir, "ssq_data_all.csv")
         
         try:
             if not os.path.exists(data_file):
@@ -3964,13 +3964,35 @@ class SSQAnalyzer:
                 print(f"聚类预测失败: {e}，使用决策树方法替代")
             return self.predict_by_decision_tree_advanced(explain)
 
-    def predict_by_super(self, explain=False):
-        """超级预测器 - 集成多种高级算法的智能融合系统"""
+    def predict_by_super(self, explain=False, periods=None, count=1, duplex=False, red_count=6, blue_count=1):
+        """超级预测器 - 集成多种高级算法的智能融合系统
+
+        Args:
+            explain: 是否显示详细过程
+            periods: 指定分析期数
+            count: 预测注数
+            duplex: 是否生成复式号码
+            red_count: 复式红球个数（6-20）
+            blue_count: 复式蓝球个数（1-16）
+        """
         try:
+            # 参数验证和设置
+            if periods is None:
+                periods = 100  # 默认分析100期
+
+            if duplex:
+                # 复式号码参数验证
+                red_count = max(6, min(20, red_count))  # 限制在6-20之间
+                blue_count = max(1, min(16, blue_count))  # 限制在1-16之间
+
             if explain:
                 print("启动超级预测器...")
                 print("构建多层次智能融合预测系统...")
                 print("集成LSTM、蒙特卡洛、聚类、马尔可夫链、混合分析等算法")
+                print(f"分析期数: {periods}期")
+                print(f"预测注数: {count}注")
+                if duplex:
+                    print(f"复式模式: 红球{red_count}个, 蓝球{blue_count}个")
 
             # 第一层：基础预测器集合
             base_predictions = {}
@@ -3979,7 +4001,7 @@ class SSQAnalyzer:
             # 1. 高级混合分析预测（最高权重）
             try:
                 start_time = time.time()
-                hybrid_results = self.predict_by_advanced_hybrid_analysis(periods=50, count=1, explain=False)
+                hybrid_results = self.predict_by_advanced_hybrid_analysis(periods=periods, count=1, explain=False)
                 if hybrid_results:
                     base_predictions['hybrid'] = hybrid_results[0]
                     prediction_confidence['hybrid'] = 0.95  # 最高置信度
@@ -4031,7 +4053,7 @@ class SSQAnalyzer:
             # 5. 马尔可夫链预测
             try:
                 start_time = time.time()
-                markov_results = self.predict_by_markov_chain_with_periods(periods=100, count=1, explain=False)
+                markov_results = self.predict_by_markov_chain_with_periods(periods=periods, count=1, explain=False)
                 if markov_results:
                     base_predictions['markov'] = markov_results[0]
                     prediction_confidence['markov'] = 0.90
@@ -4192,25 +4214,176 @@ class SSQAnalyzer:
             # 选择蓝球
             final_blue = max(blue_scores.items(), key=lambda x: x[1])[0]
 
-            if explain:
-                print(f"\n超级预测器融合完成:")
-                print(f"集成了{len(base_predictions)}种预测算法")
-                print(f"红球融合得分前6名: {[(r, f'{red_scores[r]:.3f}') for r in final_reds]}")
-                print(f"蓝球融合得分: {final_blue}({blue_scores[final_blue]:.3f})")
-                print(f"最终组合: 红球 {final_reds} | 蓝球 {final_blue}")
+            # 处理复式号码和多注预测
+            if duplex:
+                # 生成复式号码
+                return self._generate_duplex_numbers(red_scores, blue_scores, red_count, blue_count, explain)
+            elif count > 1:
+                # 生成多注号码
+                return self._generate_multiple_numbers(red_scores, blue_scores, count, explain)
+            else:
+                # 单注预测
+                if explain:
+                    print(f"\n超级预测器融合完成:")
+                    print(f"集成了{len(base_predictions)}种预测算法")
+                    print(f"红球融合得分前6名: {[(r, f'{red_scores[r]:.3f}') for r in final_reds]}")
+                    print(f"蓝球融合得分: {final_blue}({blue_scores[final_blue]:.3f})")
+                    print(f"最终组合: 红球 {final_reds} | 蓝球 {final_blue}")
 
-                # 显示组合特征
-                red_sum = sum(final_reds)
-                red_span = max(final_reds) - min(final_reds)
-                odd_count = sum(1 for x in final_reds if x % 2 == 1)
-                print(f"组合特征: 和值={red_sum}, 跨度={red_span}, 奇数={odd_count}个")
+                    # 显示组合特征
+                    red_sum = sum(final_reds)
+                    red_span = max(final_reds) - min(final_reds)
+                    odd_count = sum(1 for x in final_reds if x % 2 == 1)
+                    print(f"组合特征: 和值={red_sum}, 跨度={red_span}, 奇数={odd_count}个")
 
-            return final_reds, final_blue
+                return final_reds, final_blue
 
         except Exception as e:
             if explain:
                 print(f"超级预测器失败: {e}，使用集成方法替代")
             return self.predict_by_ensemble(explain)
+
+    def _generate_duplex_numbers(self, red_scores, blue_scores, red_count, blue_count, explain=False):
+        """生成复式号码"""
+        try:
+            if explain:
+                print(f"\n生成复式号码:")
+                print(f"红球: {red_count}个, 蓝球: {blue_count}个")
+
+            # 选择得分最高的红球
+            sorted_reds = sorted(red_scores.items(), key=lambda x: x[1], reverse=True)
+            duplex_reds = [red for red, _ in sorted_reds[:red_count]]
+            duplex_reds.sort()
+
+            # 选择得分最高的蓝球
+            sorted_blues = sorted(blue_scores.items(), key=lambda x: x[1], reverse=True)
+            duplex_blues = [blue for blue, _ in sorted_blues[:blue_count]]
+            duplex_blues.sort()
+
+            if explain:
+                print(f"复式红球: {duplex_reds}")
+                print(f"复式蓝球: {duplex_blues}")
+
+                # 计算注数
+                from math import comb
+                red_combinations = comb(red_count, 6) if red_count >= 6 else 0
+                total_combinations = red_combinations * blue_count
+                print(f"总注数: {total_combinations}注")
+
+                # 显示得分
+                print(f"红球得分: {[(r, f'{red_scores[r]:.3f}') for r in duplex_reds[:10]]}")
+                print(f"蓝球得分: {[(b, f'{blue_scores[b]:.3f}') for b in duplex_blues[:5]]}")
+
+            return {
+                'type': 'duplex',
+                'red_balls': duplex_reds,
+                'blue_balls': duplex_blues,
+                'red_count': red_count,
+                'blue_count': blue_count
+            }
+
+        except Exception as e:
+            if explain:
+                print(f"复式号码生成失败: {e}")
+            # 回退到单注
+            sorted_reds = sorted(red_scores.items(), key=lambda x: x[1], reverse=True)
+            final_reds = [red for red, _ in sorted_reds[:6]]
+            final_blue = max(blue_scores.items(), key=lambda x: x[1])[0]
+            return final_reds, final_blue
+
+    def _generate_multiple_numbers(self, red_scores, blue_scores, count, explain=False):
+        """生成多注号码"""
+        try:
+            if explain:
+                print(f"\n生成{count}注号码:")
+
+            predictions = []
+            used_combinations = set()
+
+            # 获取候选红球和蓝球（按得分排序）
+            sorted_reds = sorted(red_scores.items(), key=lambda x: x[1], reverse=True)
+            sorted_blues = sorted(blue_scores.items(), key=lambda x: x[1], reverse=True)
+
+            # 扩展候选池，确保有足够的选择
+            candidate_reds = [red for red, _ in sorted_reds[:min(20, len(sorted_reds))]]
+            candidate_blues = [blue for blue, _ in sorted_blues[:min(10, len(sorted_blues))]]
+
+            import random
+
+            for i in range(count):
+                attempts = 0
+                while attempts < 100:  # 最多尝试100次
+                    # 基于得分权重选择红球
+                    selected_reds = []
+                    red_weights = [red_scores.get(red, 0) for red in candidate_reds]
+
+                    # 添加随机性，避免完全相同的组合
+                    randomness_factor = 0.3 + (i * 0.1)  # 随着注数增加，增加随机性
+
+                    while len(selected_reds) < 6:
+                        # 加权随机选择
+                        if random.random() < randomness_factor:
+                            # 随机选择
+                            available = [r for r in candidate_reds if r not in selected_reds]
+                            if available:
+                                selected_reds.append(random.choice(available))
+                        else:
+                            # 基于权重选择
+                            available_reds = [r for r in candidate_reds if r not in selected_reds]
+                            available_weights = [red_scores.get(r, 0) for r in available_reds]
+
+                            if available_reds and sum(available_weights) > 0:
+                                selected = random.choices(available_reds, weights=available_weights)[0]
+                                selected_reds.append(selected)
+                            elif available_reds:
+                                selected_reds.append(random.choice(available_reds))
+
+                    selected_reds.sort()
+
+                    # 选择蓝球
+                    blue_weights = [blue_scores.get(blue, 0) for blue in candidate_blues]
+                    if random.random() < randomness_factor:
+                        selected_blue = random.choice(candidate_blues)
+                    else:
+                        if sum(blue_weights) > 0:
+                            selected_blue = random.choices(candidate_blues, weights=blue_weights)[0]
+                        else:
+                            selected_blue = random.choice(candidate_blues)
+
+                    # 检查是否重复
+                    combination = tuple(selected_reds + [selected_blue])
+                    if combination not in used_combinations:
+                        used_combinations.add(combination)
+                        predictions.append((selected_reds, selected_blue))
+                        break
+
+                    attempts += 1
+
+                # 如果无法生成不重复的组合，使用随机生成
+                if len(predictions) <= i:
+                    random_reds = random.sample(range(1, 34), 6)
+                    random_reds.sort()
+                    random_blue = random.randint(1, 16)
+                    predictions.append((random_reds, random_blue))
+
+            if explain:
+                print(f"成功生成{len(predictions)}注不重复号码")
+                for i, (reds, blue) in enumerate(predictions, 1):
+                    red_sum = sum(reds)
+                    red_span = max(reds) - min(reds)
+                    odd_count = sum(1 for x in reds if x % 2 == 1)
+                    print(f"第{i}注: 红球 {reds} | 蓝球 {blue} (和值={red_sum}, 跨度={red_span}, 奇数={odd_count}个)")
+
+            return predictions
+
+        except Exception as e:
+            if explain:
+                print(f"多注号码生成失败: {e}")
+            # 回退到单注
+            sorted_reds = sorted(red_scores.items(), key=lambda x: x[1], reverse=True)
+            final_reds = [red for red, _ in sorted_reds[:6]]
+            final_blue = max(blue_scores.items(), key=lambda x: x[1])[0]
+            return [(final_reds, final_blue)]
 
     def _get_historical_stats(self):
         """获取历史统计特征"""
@@ -4974,7 +5147,10 @@ def main():
     predict_parser.add_argument('--method', choices=['ensemble', 'markov', 'stats', 'probability', 'decision_tree', 'patterns', 'hybrid', 'lstm', 'monte_carlo', 'clustering', 'super'], default='ensemble', help='预测方法')
     predict_parser.add_argument('--count', type=int, default=1, help='预测注数')
     predict_parser.add_argument('--explain', action='store_true', help='显示预测过程')
-    predict_parser.add_argument('--periods', type=int, help='指定分析期数（仅适用于hybrid方法）')
+    predict_parser.add_argument('--periods', type=int, help='指定分析期数（适用于hybrid和super方法）')
+    predict_parser.add_argument('--duplex', action='store_true', help='生成复式号码（适用于super方法）')
+    predict_parser.add_argument('--red-count', type=int, default=6, help='复式红球个数（6-20个，默认6）')
+    predict_parser.add_argument('--blue-count', type=int, default=1, help='复式蓝球个数（1-16个，默认1）')
 
     # 生成号码命令
     generate_parser = subparsers.add_parser('generate', help='生成号码')
@@ -4990,14 +5166,14 @@ def main():
 
     # 获取最新开奖命令
     fetch_parser = subparsers.add_parser('fetch_latest', help='获取最新一期开奖结果并追加到文件')
-    fetch_parser.add_argument('--file', type=str, default='ssq_data.csv', help='目标CSV文件名')
+    fetch_parser.add_argument('--file', type=str, default='ssq_data_all.csv', help='目标CSV文件名')
 
     # 追加数据命令
     append_parser = subparsers.add_parser('append', help='爬取指定数据并追加到文件')
     append_parser.add_argument('--count', type=int, help='追加最新N期数据')
     append_parser.add_argument('--start', type=str, help='起始期号')
     append_parser.add_argument('--end', type=str, help='结束期号')
-    append_parser.add_argument('--file', type=str, default='ssq_data.csv', help='目标CSV文件名')
+    append_parser.add_argument('--file', type=str, default='ssq_data_all.csv', help='目标CSV文件名')
 
     # 高级混合分析命令
     hybrid_parser = subparsers.add_parser('hybrid_predict', help='高级混合分析预测')
@@ -5017,10 +5193,12 @@ def main():
             results = analyzer.crawl_specific_periods(start_issue=args.start, end_issue=args.end)
             if results:
                 if args.append:
-                    filename = "ssq_data_all.csv" if args.all else "ssq_data.csv"
+                    # 统一使用ssq_data_all.csv文件
+                    filename = "ssq_data_all.csv"
                     analyzer.append_to_csv(results, filename)
                 else:
-                    filename = "ssq_data_all.csv" if args.all else "ssq_data.csv"
+                    # 统一使用ssq_data_all.csv文件
+                    filename = "ssq_data_all.csv"
                     analyzer.save_to_csv(results, filename)
                 print("指定期数数据爬取完成")
             else:
@@ -5129,10 +5307,54 @@ def main():
                 formatted = analyzer.format_numbers(red_balls, blue_ball)
                 print(f"第{i+1}注: {formatted}")
         elif args.method == 'super':
-            for i in range(args.count):
-                red_balls, blue_ball = analyzer.predict_by_super(explain=args.explain and i == 0)
+            # 超级预测器支持指定期数、多注和复式
+            periods = args.periods if args.periods else 100
+
+            result = analyzer.predict_by_super(
+                explain=args.explain,
+                periods=periods,
+                count=args.count,
+                duplex=args.duplex,
+                red_count=args.red_count,
+                blue_count=args.blue_count
+            )
+
+            if args.duplex:
+                # 复式号码输出
+                if isinstance(result, dict) and result.get('type') == 'duplex':
+                    print(f"\n复式号码预测结果:")
+                    print(f"红球({result['red_count']}个): {result['red_balls']}")
+                    print(f"蓝球({result['blue_count']}个): {result['blue_balls']}")
+
+                    # 计算注数
+                    from math import comb
+                    red_combinations = comb(result['red_count'], 6) if result['red_count'] >= 6 else 0
+                    total_combinations = red_combinations * result['blue_count']
+                    print(f"总注数: {total_combinations}注")
+                else:
+                    # 回退到单注显示
+                    red_balls, blue_ball = result
+                    formatted = analyzer.format_numbers(red_balls, blue_ball)
+                    print(f"预测结果: {formatted}")
+
+            elif args.count > 1:
+                # 多注号码输出
+                if isinstance(result, list):
+                    print(f"\n{len(result)}注预测结果:")
+                    for i, (red_balls, blue_ball) in enumerate(result, 1):
+                        formatted = analyzer.format_numbers(red_balls, blue_ball)
+                        print(f"第{i}注: {formatted}")
+                else:
+                    # 回退到单注显示
+                    red_balls, blue_ball = result
+                    formatted = analyzer.format_numbers(red_balls, blue_ball)
+                    print(f"预测结果: {formatted}")
+
+            else:
+                # 单注号码输出
+                red_balls, blue_ball = result
                 formatted = analyzer.format_numbers(red_balls, blue_ball)
-                print(f"第{i+1}注: {formatted}")
+                print(f"预测结果: {formatted}")
 
     elif args.command == 'generate':
         # 生成号码
@@ -5152,11 +5374,29 @@ def main():
 
     elif args.command == 'latest':
         # 查看最新开奖
-        issue, date, red_balls, blue_ball = analyzer.get_latest_draw(real_time=args.real_time)
+        if args.real_time:
+            # 实时获取，不需要加载本地数据
+            issue, date, red_balls, blue_ball = analyzer.get_latest_draw(real_time=True)
+        else:
+            # 从本地数据获取，需要先加载数据
+            print("正在加载数据...")
+            if analyzer.load_data(force_all_data=True):
+                issue, date, red_balls, blue_ball = analyzer.get_latest_draw(real_time=False)
+            else:
+                print("数据加载失败，尝试实时获取...")
+                issue, date, red_balls, blue_ball = analyzer.get_latest_draw(real_time=True)
+
         if issue:
             formatted = analyzer.format_numbers(red_balls, blue_ball)
             print(f"最新开奖({issue}期): {formatted}")
-            print(f"开奖日期: {date}")
+
+            # 格式化日期显示
+            if isinstance(date, str):
+                print(f"开奖日期: {date}")
+            elif hasattr(date, 'strftime'):
+                print(f"开奖日期: {date.strftime('%Y-%m-%d')}")
+            else:
+                print(f"开奖日期: {date}")
         else:
             print("获取最新开奖结果失败")
 
